@@ -10,7 +10,7 @@ export const authApi = baseApi.injectEndpoints({
         body: { email },
       }),
     }),
-    
+
     // Verify OTP and Register
     verifyOtpAndRegister: builder.mutation({
       query: (data) => ({
@@ -20,7 +20,7 @@ export const authApi = baseApi.injectEndpoints({
         credentials: 'include',
       }),
     }),
-    
+
     // Login
     login: builder.mutation({
       query: (credentials) => ({
@@ -30,7 +30,7 @@ export const authApi = baseApi.injectEndpoints({
         credentials: 'include',
       }),
     }),
-    
+
     // Refresh Token
     refreshToken: builder.mutation({
       query: () => ({
@@ -39,7 +39,7 @@ export const authApi = baseApi.injectEndpoints({
         credentials: 'include',
       }),
     }),
-    
+
     // Change Password (khi đã login)
     changePassword: builder.mutation({
       query: (data) => ({
@@ -49,7 +49,7 @@ export const authApi = baseApi.injectEndpoints({
         credentials: 'include',
       }),
     }),
-    
+
     // Forgot Password - Request Reset
     requestResetPassword: builder.mutation({
       query: (email) => ({
@@ -58,7 +58,7 @@ export const authApi = baseApi.injectEndpoints({
         body: { email },
       }),
     }),
-    
+
     // Reset Password
     resetPassword: builder.mutation({
       query: (data) => ({
@@ -67,7 +67,7 @@ export const authApi = baseApi.injectEndpoints({
         body: data, // { email, otp, newPassword }
       }),
     }),
-    
+
     // Logout
     logout: builder.mutation({
       query: () => ({
@@ -76,7 +76,26 @@ export const authApi = baseApi.injectEndpoints({
         credentials: 'include',
       }),
     }),
-    
+
+    // Login Facebook
+    loginFacebook: builder.mutation({
+      query: () => ({
+        url: '/auth/facebook/callback', // backend trả JSON user + accessToken
+        method: 'GET',
+        credentials: 'include',
+      }),
+    }),
+
+    // Lấy auth từ session (sau Facebook login)
+    getSessionAuth: builder.query({
+      query: () => ({
+        url: '/auth/session-auth',
+        method: 'GET',
+        credentials: 'include',
+      }),
+    }),
+
+
     // Get Current User
     getMe: builder.query({
       query: () => '/auth/me',
@@ -94,5 +113,8 @@ export const {
   useRequestResetPasswordMutation,
   useResetPasswordMutation,
   useLogoutMutation,
+  useLoginFacebookMutation,
+  useLazyGetSessionAuthQuery,
   useGetMeQuery,
+  useLazyGetMeQuery,
 } = authApi;

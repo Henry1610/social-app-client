@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useLoginMutation } from './authApi';
 import { setCredentials } from './authSlice';
-
+import FacebookLoginButton from '../../components/common/FacebookLoginButton';
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -19,21 +19,16 @@ const Login = () => {
     
     try {
       const result = await login(formData).unwrap();
-      
+      // Server returns { message, user,  accessToken}
       dispatch(setCredentials({
-        user: result.data.user,
-        accessToken: result.data.accessToken,
+        user: result.user,
+        accessToken: result.accessToken,
       }));
       
       navigate('/');
     } catch (err) {
       alert(err.data?.message || 'Login failed');
     }
-  };
-
-  // Facebook Login
-  const handleFacebookLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/facebook';
   };
 
   return (
@@ -75,13 +70,7 @@ const Login = () => {
         </div>
       </div>
 
-      <button
-        onClick={handleFacebookLogin}
-        className="w-full bg-blue-600 text-white p-2 rounded mb-4 flex items-center justify-center"
-      >
-        <span className="mr-2">📘</span>
-        Login with Facebook
-      </button>
+      <FacebookLoginButton/>
 
       <div className="text-center mt-4">
         <Link to="/forgot-password" className="text-blue-500 text-sm">

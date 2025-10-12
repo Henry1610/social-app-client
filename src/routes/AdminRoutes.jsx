@@ -10,21 +10,6 @@ import { selectIsAuthenticated, selectCurrentUser } from '../features/auth/authS
 // import AnalyticsPage from '../pages/admin/AnalyticsPage';
 // import SettingsPage from '../pages/admin/SettingsPage';
 
-const AdminRoute = ({ children }) => {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const currentUser = useSelector(selectCurrentUser);
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  // Kiểm tra role admin
-  if (currentUser?.role !== 'admin') {
-    return <Navigate to="/home" replace />;
-  }
-  
-  return children;
-};
 
 const AdminRoutes = () => {
   return (

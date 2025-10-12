@@ -1,8 +1,9 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { logout, updateAccessToken } from '../features/auth/authSlice';
 
+const serverUrl = process.env.REACT_APP_SERVER_URL;
 const baseQuery = fetchBaseQuery({
-  baseUrl: process.env.SERVER_URL + 'api' || 'http://localhost:5000/api',
+  baseUrl: `${serverUrl}/api`,
   credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = getState().auth.accessToken;
@@ -17,32 +18,27 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
 
-  // Nếu AT hết hạn (401)
-  if (result?.error?.status === 401) {
-    console.log('Access token expired, refreshing...');
-
-    // Gọi refresh token
+  if (result?.error?.status === 401 ) {
     const refreshResult = await baseQuery(
-      { url: '/auth/refresh', method: 'POST' },
+      { url: '/auth/refresh-token', method: 'POST' },
       api,
       extraOptions
     );
-
+    
     if (refreshResult?.data) {
-      // Lưu AT mới
       const { accessToken } = refreshResult.data;
       api.dispatch(updateAccessToken(accessToken));
 
-      // Retry request ban đầu với AT mới
+      // ✅ Không dùng let, chỉ gán lại
       result = await baseQuery(args, api, extraOptions);
     } else {
-      // Refresh thất bại -> logout
       api.dispatch(logout());
     }
   }
 
   return result;
 };
+
 
 export const baseApi = createApi({
   reducerPath: 'api',

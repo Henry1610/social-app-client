@@ -1,59 +1,84 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { selectIsAuthenticated, selectCurrentUser } from '../features/auth/authSlice';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+import {
+  logout,
+  updateUser,
+  setCredentials,
+  selectIsAuthenticated,
+  selectCurrentUser,
+} from "../features/auth/authSlice";
+import { useGetMeQuery } from "../features/auth/authApi";
+import ProtectedRoute from "../features/auth/ProtectedRoute";
 
 // Import route groups
-import PublicRoutes from './PublicRoutes';
-import UserRoutes from './UserRoutes';
-import AdminRoutes from './AdminRoutes';
-
+import PublicRoutes from "./PublicRoutes";
+import UserRoutes from "./UserRoutes";
+import AdminRoutes from "./AdminRoutes";
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 // Layout components
-import Layout from '../components/layouts/Layout';
-import AdminLayout from '../components/layouts/AdminLayout';
+import Layout from "../components/layouts/Layout";
+import AdminLayout from "../components/layouts/AdminLayout";
 
 const AppRoutes = () => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
-  
-  const isAdmin = currentUser?.role === 'admin';
 
+  const isAdmin = currentUser?.role === "admin";
+  const dispatch = useDispatch();
+  
+  // Auto-fetch user info khi app khởi động
+  const { data: userData, error, isLoading } = useGetMeQuery();
+
+  console.log("🔑 isAuthenticated:", isAuthenticated, " | isAdmin:", isAdmin);
+
+  useEffect(() => {
+    if (userData) {
+      if (userData.accessToken) {
+        dispatch(setCredentials({
+          user: userData,
+          accessToken: userData.accessToken
+        }));
+      } else {
+        // Chỉ có user info -> chỉ cập nhật user
+        dispatch(updateUser(userData));
+      }
+    } else if (error) {
+      console.log("⚠️ No valid session");
+      dispatch(logout());
+    }
+  }, [userData, error, dispatch]);
   return (
     <BrowserRouter>
       <Routes>
         {/* Public Routes - Không cần login */}
-        <Route path="/*" element={<PublicRoutes />} />
-        
-        {/* User Routes - Cần login */}
-        {isAuthenticated && !isAdmin && (
-          <Route path="/*" element={
-            <Layout>
-              <UserRoutes />
-            </Layout>
-          } />
-        )}
-        
-        {/* Admin Routes - Cần login + role admin */}
-        {isAuthenticated && isAdmin && (
-          <Route path="/admin/*" element={
-            <AdminLayout>
-              <AdminRoutes />
-            </AdminLayout>
-          } />
-        )}
-        
-        {/* Redirect based on role */}
-        <Route path="/" element={
-          !isAuthenticated ? (
-            <Navigate to="/login" replace />
-          ) : isAdmin ? (
-            <Navigate to="/admin/dashboard" replace />
-          ) : (
-            <Navigate to="/home" replace />
-          )
-        } />
-        
-        {/* 404 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<PublicRoutes />} />
+       
+
+        {/* User Routes - Cần login với role user */}
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute requiredRole="user">
+              <Layout>
+                <UserRoutes />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes - Cần login với role admin */}
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout>
+                <AdminRoutes />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

@@ -6,7 +6,6 @@ export const store = configureStore({
   reducer: {
     // RTK Query
     [baseApi.reducerPath]: baseApi.reducer,
-    
     // Auth slice
     auth: authReducer,
   },
