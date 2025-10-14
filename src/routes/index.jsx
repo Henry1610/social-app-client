@@ -23,6 +23,7 @@ import AdminRoutes from "./AdminRoutes";
 // Layouts
 import Layout from "../components/layouts/Layout";
 import AdminLayout from "../components/layouts/AdminLayout";
+import AuthLayout from "../components/layouts/AuthLayout";
 
 // Optional 404
 // import NotFound from "../components/common/NotFound";
@@ -35,16 +36,26 @@ const AppRoutes = () => {
 
   const { data: userData, error, isLoading } = useGetMeQuery();
 
-  console.log("🔑 Authenticated:", isAuthenticated, "| Role:", currentUser?.role);
+  console.log(
+    "🔑 Authenticated:",
+    isAuthenticated,
+    "| Role:",
+    currentUser?.role
+  );
 
   // 🔄 Sync user info on app load
   useEffect(() => {
     if (userData && !isLoading) {
-      if (userData.accessToken && userData.accessToken !== currentUser?.accessToken) {
-        dispatch(setCredentials({
-          user: userData,
-          accessToken: userData.accessToken
-        }));
+      if (
+        userData.accessToken &&
+        userData.accessToken !== currentUser?.accessToken
+      ) {
+        dispatch(
+          setCredentials({
+            user: userData,
+            accessToken: userData.accessToken,
+          })
+        );
       } else if (!userData.accessToken && userData.id !== currentUser?.id) {
         dispatch(updateUser(userData));
       }
@@ -57,24 +68,23 @@ const AppRoutes = () => {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* 🌐 Public routes (không cần đăng nhập) */}
-        <Route path="/*" element={<PublicRoutes />} />
-
         {/* 👤 User routes (yêu cầu đăng nhập và role 'user') */}
-        <Route
-          path="/user/*"
-          element={
-            <ProtectedRoute requiredRole="user">
-              <Layout>
-                <UserRoutes />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
 
-        {/* 🛠️ Admin routes (yêu cầu role 'admin') */}
-        <Route
+        <Route element={<AuthLayout />}>
+          {PublicRoutes.map((route, index) => {
+            const Page = route.component;
+            return <Route key={index} path={route.path} element={<Page />} />;
+          })}
+        </Route>
+        {/* 🌐 Public routes (không cần đăng nhập) */}
+        <Route element={<Layout />}>
+          {UserRoutes.map((route, index) => {
+            const Page = route.component;
+            return <Route key={index} path={route.path} element={<Page />} />;
+          })}
+        </Route>
+
+        {/* <Route
           path="/admin/*"
           element={
             <ProtectedRoute requiredRole="admin">
@@ -83,11 +93,9 @@ const AppRoutes = () => {
               </AdminLayout>
             </ProtectedRoute>
           }
-        />
+        /> */}
 
-        {/*  404 fallback */}
         {/* <Route path="*" element={<NotFound />} /> */}
-
       </Routes>
     </BrowserRouter>
   );
