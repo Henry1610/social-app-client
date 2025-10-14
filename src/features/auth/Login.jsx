@@ -1,88 +1,109 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { useLoginMutation } from './authApi';
-import { setCredentials } from './authSlice';
-import FacebookLoginButton from '../../components/common/FacebookLoginButton';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { useLoginMutation } from "./authApi";
+import { setCredentials } from "./authSlice";
+import FacebookLoginButton from "../../components/common/FacebookLoginButton";
+import FloatingInput from "../../components/common/FloatingInput";
+import Divider from "../../components/common/Divider";
+import SpriteCropped from "../../components/common/SpriteCropped";
+
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
-  
+
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [login, { isLoading }] = useLoginMutation();
 
+  const handleInputChange = (field) => (e) => {
+    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     try {
       const result = await login(formData).unwrap();
-      // Server returns { message, user,  accessToken}
-      dispatch(setCredentials({
-        user: result.user,
-        accessToken: result.accessToken,
-      }));
-      
-      navigate('/');
+      dispatch(
+        setCredentials({
+          user: result.user,
+          accessToken: result.accessToken,
+        })
+      );
+      navigate("/");
     } catch (err) {
-      alert(err.data?.message || 'Login failed');
+      alert(err.data?.message || "Đăng nhập thất bại");
     }
   };
 
+  const isFormValid =
+    formData.email.length > 0 && formData.password.length >= 6;
+
   return (
-    <div className="max-w-md mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6">Login</h2>
-      
-      <form onSubmit={handleSubmit}>
-        <input
+    <div className=" p-10 w-[350px] text-center">
+      <div className="flex justify-center mb-6">
+        <SpriteCropped
+          spriteUrl="https://static.cdninstagram.com/rsrc.php/v4/yz/r/H_-3Vh0lHeK.png"
+          bgPosition="0 -2959"
+          width={175}
+          height={51}
+          alt="Instagram Logo"
+        />
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-1">
+        <FloatingInput
           type="email"
+          id="email"
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          placeholder="Email"
+          onChange={handleInputChange("email")}
+          label="Tên người dùng hoặc email"
           required
-          className="w-full p-2 border rounded mb-4"
         />
-        <input
+
+        <FloatingInput
           type="password"
+          id="password"
           value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          placeholder="Password"
+          onChange={handleInputChange("password")}
+          label="Mật khẩu"
           required
-          className="w-full p-2 border rounded mb-4"
+          showToggle
         />
-        <button 
-          type="submit" 
-          disabled={isLoading}
-          className="w-full bg-blue-500 text-white p-2 rounded mb-4"
+
+        <button
+          type="submit"
+          disabled={isLoading || !isFormValid}
+          className="bg-[#4A5DF9] text-white mt-3 font-semibold py-1 rounded-md 
+                hover:bg-[#3C4CE0] transition disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Logging in...' : 'Login'}
+          {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white text-gray-500">OR</span>
-        </div>
-      </div>
+      <Divider text="HOẶC" />
 
-      <FacebookLoginButton/>
+      <FacebookLoginButton />
 
-      <div className="text-center mt-4">
-        <Link to="/forgot-password" className="text-blue-500 text-sm">
-          Forgot password?
-        </Link>
-      </div>
-      
-      <div className="text-center mt-2">
-        <span className="text-sm">Don't have an account? </span>
-        <Link to="/register" className="text-blue-500 text-sm">
-          Sign up
-        </Link>
+      <Link
+        to="/forgot-password"
+        className="text-xs text-[#00376b] mt-2 block hover:underline"
+      >
+        Quên mật khẩu?
+      </Link>
+
+      <div className=" p-6 text-center mt-4">
+        <p className="text-sm">
+          Bạn chưa có tài khoản ư?{" "}
+          <Link
+            to="/register"
+            className="text-[#4A5DF9] font-medium hover:underline"
+          >
+            Đăng ký
+          </Link>
+        </p>
       </div>
     </div>
   );

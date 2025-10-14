@@ -1,9 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { selectIsAuthenticated, selectCurrentUser } from '../features/auth/authSlice';
+import { Routes, Route } from 'react-router-dom';
 
 // Admin pages
-// import AdminDashboard from '../pages/admin/Dashboard';
+import Dashboard from '../pages/admin/Dashboard';
 // import UserManagement from '../pages/admin/UserManagement';
 // import PostManagement from '../pages/admin/PostManagement';
 // import ReportManagement from '../pages/admin/ReportManagement';
@@ -14,6 +12,7 @@ import { selectIsAuthenticated, selectCurrentUser } from '../features/auth/authS
 const AdminRoutes = () => {
   return (
     <Routes>
+      <Route path="/" element={<Dashboard />} />
       {/* <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
       <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
       <Route path="/admin/posts" element={<AdminRoute><PostManagement /></AdminRoute>} />

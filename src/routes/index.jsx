@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from "react";
 
+// Redux Auth Slice
 import {
   logout,
   updateUser,
@@ -9,56 +11,59 @@ import {
   selectCurrentUser,
 } from "../features/auth/authSlice";
 import { useGetMeQuery } from "../features/auth/authApi";
+
+// Route protection
 import ProtectedRoute from "../features/auth/ProtectedRoute";
 
-// Import route groups
+// Route groups
 import PublicRoutes from "./PublicRoutes";
 import UserRoutes from "./UserRoutes";
 import AdminRoutes from "./AdminRoutes";
-import { useEffect } from "react";
-import { useDispatch } from "react-redux";
-// Layout components
+
+// Layouts
 import Layout from "../components/layouts/Layout";
 import AdminLayout from "../components/layouts/AdminLayout";
 
+// Optional 404
+// import NotFound from "../components/common/NotFound";
+
 const AppRoutes = () => {
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
-
   const isAdmin = currentUser?.role === "admin";
-  const dispatch = useDispatch();
-  
-  // Auto-fetch user info khi app khởi động
+
   const { data: userData, error, isLoading } = useGetMeQuery();
 
-  console.log("🔑 isAuthenticated:", isAuthenticated, " | isAdmin:", isAdmin);
+  console.log("🔑 Authenticated:", isAuthenticated, "| Role:", currentUser?.role);
 
+  // 🔄 Sync user info on app load
   useEffect(() => {
-    if (userData) {
-      if (userData.accessToken) {
+    if (userData && !isLoading) {
+      if (userData.accessToken && userData.accessToken !== currentUser?.accessToken) {
         dispatch(setCredentials({
           user: userData,
           accessToken: userData.accessToken
         }));
-      } else {
-        // Chỉ có user info -> chỉ cập nhật user
+      } else if (!userData.accessToken && userData.id !== currentUser?.id) {
         dispatch(updateUser(userData));
       }
     } else if (error) {
-      console.log("⚠️ No valid session");
+      console.log("⚠️ Invalid session, logging out...");
       dispatch(logout());
     }
-  }, [userData, error, dispatch]);
+  }, [userData, error, dispatch, isLoading, currentUser]);
+
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes - Không cần login */}
-        <Route path="*" element={<PublicRoutes />} />
-       
 
-        {/* User Routes - Cần login với role user */}
+        {/* 🌐 Public routes (không cần đăng nhập) */}
+        <Route path="/*" element={<PublicRoutes />} />
+
+        {/* 👤 User routes (yêu cầu đăng nhập và role 'user') */}
         <Route
-          path="/*"
+          path="/user/*"
           element={
             <ProtectedRoute requiredRole="user">
               <Layout>
@@ -68,7 +73,7 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Admin Routes - Cần login với role admin */}
+        {/* 🛠️ Admin routes (yêu cầu role 'admin') */}
         <Route
           path="/admin/*"
           element={
@@ -79,6 +84,10 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/*  404 fallback */}
+        {/* <Route path="*" element={<NotFound />} /> */}
+
       </Routes>
     </BrowserRouter>
   );
