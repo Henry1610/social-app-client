@@ -68,35 +68,27 @@ const AppRoutes = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 👤 User routes (yêu cầu đăng nhập và role 'user') */}
-
         <Route element={<AuthLayout />}>
           {PublicRoutes.map((route, index) => {
             const Page = route.component;
             return <Route key={index} path={route.path} element={<Page />} />;
           })}
         </Route>
-        {/* 🌐 Public routes (không cần đăng nhập) */}
-        <Route element={<Layout />}>
+        <Route element={<ProtectedRoute requireRole="user"><Layout /></ProtectedRoute>}>
           {UserRoutes.map((route, index) => {
             const Page = route.component;
             return <Route key={index} path={route.path} element={<Page />} />;
           })}
         </Route>
 
-        {/* <Route
-          path="/admin/*"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <AdminLayout>
-                <AdminRoutes />
-              </AdminLayout>
-            </ProtectedRoute>
-          }
-        /> */}
+        <Route path="/admin/*" element={<ProtectedRoute requiredRole="admin"><AdminLayout/></ProtectedRoute>} >
+            {AdminRoutes.map((route, index) => {
+            const Page = route.component;
+            return <Route key={index} path={route.path} element={<Page />} />;
+          })}
+        </Route>
+        </Routes>
 
-        {/* <Route path="*" element={<NotFound />} /> */}
-      </Routes>
     </BrowserRouter>
   );
 };

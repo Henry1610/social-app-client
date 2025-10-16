@@ -14,11 +14,11 @@ const SpriteCropped = ({ spriteUrl, bgPosition, width, height, alt = "" }) => {
     if (!spriteUrl || !bgPosition || !width || !height) return;
 
     const [xStr, yStr] = bgPosition.split(" ");
-    const x = parseInt(xStr); // có thể âm
+    const x = parseInt(xStr);
     const y = parseInt(yStr);
 
     const img = new Image();
-    img.crossOrigin = "anonymous"; // nếu khác domain
+    img.crossOrigin = "anonymous"; 
     img.src = spriteUrl;
 
     img.onload = () => {

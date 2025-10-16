@@ -27,6 +27,10 @@
 .App-link {
   color: #61dafb;
 }
+:root {
+  --feed-sidebar-width: 244px;
+  --feed-max-width: 600px;
+}
 
 @keyframes App-logo-spin {
   from {

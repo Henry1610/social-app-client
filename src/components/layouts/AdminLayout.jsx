@@ -1,9 +1,9 @@
 
-
-const AdminLayout = ({ children }) => {
+import { Outlet } from "react-router-dom";
+const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-
+      <Outlet />
     </div>
   );
 };

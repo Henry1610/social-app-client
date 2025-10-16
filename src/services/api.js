@@ -29,7 +29,6 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
       const { accessToken } = refreshResult.data;
       api.dispatch(updateAccessToken(accessToken));
 
-      // ✅ Không dùng let, chỉ gán lại
       result = await baseQuery(args, api, extraOptions);
     } else {
       api.dispatch(logout());

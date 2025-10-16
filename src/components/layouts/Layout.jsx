@@ -1,9 +1,12 @@
 
 import { Outlet } from "react-router-dom";
-const Layout = ({ children }) => {
+import Sidebar from "../layouts/SideBar";
+const Layout = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-<Outlet/>    </div>
+    <div className="flex h-screen">
+      <Sidebar />
+      <Outlet/>
+    </div>
   );
 };
 

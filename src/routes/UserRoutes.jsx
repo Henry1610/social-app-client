@@ -1,7 +1,7 @@
-import HomePage from "../pages/HomePage";
+import Home from "../pages/Home";
 
 const UserRoutes = [
-  { path: "/", component: HomePage },
+  { path: "/", component: Home },
 
 ]
 

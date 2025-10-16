@@ -117,31 +117,30 @@ const Register = () => {
               : "Gửi OTP để đăng ký"}
           </button>
           <div className="text-xs text-gray-500 mt-4 leading-snug">
-  <p>
-    Những người dùng dịch vụ của chúng tôi có thể đã tải thông tin liên hệ của bạn lên Instagram.{" "}
-    <a href="/learn-more" className="text-blue-500 hover:underline">
-      Tìm hiểu thêm
-    </a>
-  </p>
-  <p className="mt-1">
-    Bằng cách đăng ký, bạn đồng ý với{" "}
-    <a href="/terms" className="text-blue-500 hover:underline">
-      Điều khoản
-    </a>
-    ,{" "}
-    <a href="/privacy" className="text-blue-500 hover:underline">
-      Chính sách quyền riêng tư
-    </a>{" "}
-    và{" "}
-    <a href="/cookies" className="text-blue-500 hover:underline">
-      Chính sách cookie
-    </a>{" "}
-    của chúng tôi.
-  </p>
-</div>
-
+            <p>
+              Những người dùng dịch vụ của chúng tôi có thể đã tải thông tin
+              liên hệ của bạn lên Instagram.{" "}
+              <a href="/learn-more" className="text-blue-500 hover:underline">
+                Tìm hiểu thêm
+              </a>
+            </p>
+            <p className="mt-1">
+              Bằng cách đăng ký, bạn đồng ý với{" "}
+              <a href="/terms" className="text-blue-500 hover:underline">
+                Điều khoản
+              </a>
+              ,{" "}
+              <a href="/privacy" className="text-blue-500 hover:underline">
+                Chính sách quyền riêng tư
+              </a>{" "}
+              và{" "}
+              <a href="/cookies" className="text-blue-500 hover:underline">
+                Chính sách cookie
+              </a>{" "}
+              của chúng tôi.
+            </p>
+          </div>
         </form>
-        
       ) : (
         <form onSubmit={handleRegister} className="flex flex-col gap-1">
           <FloatingInput
