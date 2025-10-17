@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Home,
   Search,
@@ -10,25 +10,50 @@ import {
   X,
 } from "lucide-react";
 import InstagramLogo1 from "../common/InstagramLogo1";
+import { useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { selectCurrentUser } from "../../features/auth/authSlice";
+import { useLazySearchUsersQuery } from "../../features/Profile/profileApi";
 
 const Sidebar = () => {
   const [active, setActive] = useState(null);
   const [value, setValue] = useState("");
-
+  const [triggerSearch, { data: searchData, isFetching }] =
+    useLazySearchUsersQuery();
+  const navigate = useNavigate();
+  const currentUser = useSelector(selectCurrentUser);
   const isCollapsed = active === "Tìm kiếm";
 
+  const selfProfilePath =
+    currentUser?.username || currentUser?.email
+      ? `/${encodeURIComponent(currentUser.username || currentUser.email)}`
+      : "/";
   const menuItems = [
-    { icon: <Home size={22} />, label: "Trang chủ" },
+    { icon: <Home size={22} />, label: "Trang chủ", path: "/" },
     { icon: <Search size={22} />, label: "Tìm kiếm" },
     { icon: <Send size={22} />, label: "Tin nhắn" },
     { icon: <Heart size={22} />, label: "Thông báo" },
     { icon: <PlusSquare size={22} />, label: "Tạo" },
-    { icon: <User size={22} />, label: "Trang cá nhân" },
+    { icon: <User size={22} />, label: "Trang cá nhân", path: selfProfilePath },
   ];
 
-  const handleClick = (label) => {
-    setActive(active === label ? null : label);
+  const handleClick = (item) => {
+    if (item.label === "Tìm kiếm") {
+      setActive(active === "Tìm kiếm" ? null : "Tìm kiếm");
+    } else {
+      setActive(item.label);
+      if (item.path) navigate(item.path);
+    }
   };
+
+  useEffect(() => {
+    const q = value.trim();
+    if (!q) return;
+    const id = setTimeout(() => {
+      triggerSearch(q);
+    }, 300); // debounce 300ms
+    return () => clearTimeout(id);
+  }, [value, triggerSearch]);
 
   return (
     <>
@@ -39,19 +64,23 @@ const Sidebar = () => {
         }`}
       >
         {/* Logo */}
-        <div className="mb-6 pt-4 transition-all duration-300">
+        <Link
+          to="/"
+          className={`h-[80px] flex items-center transition-all duration-300 ${
+            isCollapsed ? "justify-center" : ""
+          }`}
+        >
+          {" "}
           {!isCollapsed ? (
-            <InstagramLogo1 className="w-40 h-auto mt-3" />
+            <InstagramLogo1 className="w-40 h-auto" />
           ) : (
-            <div className="flex justify-center">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png"
-                alt="Logo nhỏ"
-                className="w-8 h-8"
-              />
-            </div>
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png"
+              alt="Logo nhỏ"
+              className="w-8 h-8"
+            />
           )}
-        </div>
+        </Link>
 
         {/* Menu items */}
         <nav className="flex-1">
@@ -59,7 +88,7 @@ const Sidebar = () => {
             {menuItems.map((item, index) => (
               <li key={index}>
                 <button
-                  onClick={() => handleClick(item.label)}
+                  onClick={() => handleClick(item)}
                   className={`w-full flex items-center gap-4 px-3 py-3 hover:bg-gray-100 rounded-lg transition-colors duration-150 ${
                     active === item.label ? "bg-gray-100" : ""
                   }`}
@@ -81,7 +110,11 @@ const Sidebar = () => {
         {/* Bottom menu */}
         <div className="border-t border-gray-200 pt-3">
           <button className="flex items-center gap-4 px-3 py-3 hover:bg-gray-100 rounded-lg w-full">
-            <Menu size={22} />
+            <span className="text-lg flex-shrink-0">
+              {" "}
+              <Menu size={22} />
+            </span>
+
             <span
               className={`text-[15px] font-medium text-gray-800 whitespace-nowrap transition-all duration-300 overflow-hidden ${
                 isCollapsed ? "opacity-0 w-0" : "opacity-100 w-auto"
@@ -95,7 +128,7 @@ const Sidebar = () => {
 
       {/* Search Panel */}
       <div
-        className={`absolute top-0 left-[80px] h-full bg-white border-r shadow-xl transition-all duration-300 z-30 ${
+        className={`fixed top-0 left-[80px] h-full bg-white border-r shadow-xl transition-all duration-300 z-30 ${
           active === "Tìm kiếm"
             ? "w-[400px] opacity-100 translate-x-0"
             : "w-0 opacity-0 -translate-x-5 overflow-hidden"
@@ -136,9 +169,28 @@ const Sidebar = () => {
               </p>
             </div>
             <div className="space-y-2">
-              <SearchResult name="katie_102" desc="Thanh Trang" />
-              <SearchResult name="_fxs205" desc="Như Quỳnh" />
-              <SearchResult name="tz_hao24" desc="N.PhươngThảo" />
+              {isFetching && (
+                <p className="text-sm text-gray-500">Đang tìm...</p>
+              )}
+              {!isFetching &&
+                value &&
+                (searchData?.users?.length ? (
+                  searchData.users.map((u) => (
+                    <SearchResult
+                      key={u.id}
+                      name={u.username}
+                      desc={u.fullName}
+                      avatar={u.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                      onClick={() => {
+                        navigate(`/${encodeURIComponent(u.username)}`);
+                        setActive(null);
+                        setValue("");
+                      }}
+                    />
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">Không có kết quả</p>
+                ))}
             </div>
           </div>
         )}
@@ -147,12 +199,15 @@ const Sidebar = () => {
   );
 };
 
-function SearchResult({ name, desc }) {
+function SearchResult({ name, desc, avatar, onClick }) {
   return (
-    <div className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg cursor-pointer">
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg cursor-pointer"
+    >
       <div className="flex items-center gap-3">
         <img
-          src={`https://i.pravatar.cc/50?u=${name}`}
+          src={avatar || `https://i.pravatar.cc/50?u=${name}`}
           alt={name}
           className="w-10 h-10 rounded-full"
         />

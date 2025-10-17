@@ -5,13 +5,13 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn" }) => {
   const [open, setOpen] = useState(false);
 
   const messages = [
-    { name: "finn", message: "Tx hà b", time: "4 tuần", avatar: "https://i.pravatar.cc/100?img=1" },
-    { name: "T.Đạt3110", message: "Isao", time: "6 tuần", avatar: "https://i.pravatar.cc/100?img=2" },
-    { name: "Kiểm tra iQ của bạn", message: "Chào bạn ạ! Tôi đây để giúp bạn...", time: "8 tuần", avatar: "https://i.pravatar.cc/100?img=3" },
-    { name: "Thúc Nguyên", message: "hâhha", time: "9 tuần", avatar: "https://i.pravatar.cc/100?img=4" },
-    { name: "Bảo Trân", message: "Nhớ nha m:))", time: "12 tuần", avatar: "https://i.pravatar.cc/100?img=5" },
-    { name: "n2uynh_xx", message: "Tui nể si mới v mà sợ gì", time: "19 tuần", avatar: "https://i.pravatar.cc/100?img=6" },
-    { name: "Minh Khôi", message: "Ok nha bro", time: "20 tuần", avatar: "https://i.pravatar.cc/100?img=7" },
+    { name: "finn", message: "Tx hà b", time: "4 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
+    { name: "finn", message: "Isao", time: "6 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
+    { name: "finn", message: "Chào bạn ạ! Tôi đây để giúp bạn...", time: "8 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
+    { name: "finn", message: "hâhha", time: "9 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
+    { name: "finn", message: "Nhớ nha m:))", time: "12 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
+    { name: "finn", message: "Tui nể si mới v mà sợ gì", time: "19 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
+    { name: "finn", message: "Ok nha bro", time: "20 tuần", avatar: "/images/avatar-IG-mac-dinh-1.jpg" },
   ];
 
   return (

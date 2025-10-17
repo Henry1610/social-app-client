@@ -17,7 +17,7 @@ const baseQuery = fetchBaseQuery({
 // Wrapper để handle refresh token tự động
 const baseQueryWithReauth = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
-
+  
   if (result?.error?.status === 401 ) {
     const refreshResult = await baseQuery(
       { url: '/auth/refresh-token', method: 'POST' },
@@ -26,9 +26,9 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
     );
     
     if (refreshResult?.data) {
+      
       const { accessToken } = refreshResult.data;
       api.dispatch(updateAccessToken(accessToken));
-
       result = await baseQuery(args, api, extraOptions);
     } else {
       api.dispatch(logout());

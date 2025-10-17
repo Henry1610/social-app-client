@@ -1,8 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  user: null, // { id, email, username, role: 'user' | 'admin' }
+  user: null,
   accessToken: null,
+  isSessionInitialized: false,
 };
 
 const authSlice = createSlice({
@@ -14,27 +15,32 @@ const authSlice = createSlice({
       state.user = user;
       state.accessToken = accessToken;
     },
-    
+
     logout: (state) => {
       state.user = null;
       state.accessToken = null;
     },
-    
+
     updateAccessToken: (state, action) => {
       state.accessToken = action.payload;
     },
-    
+
     updateUser: (state, action) => {
       state.user = action.payload;
+    },
+
+    setSessionInitialized: (state) => {
+      state.isSessionInitialized = true;
     },
   },
 });
 
-export const { setCredentials, logout, updateAccessToken, updateUser } = authSlice.actions;
+export const { setCredentials, logout, updateAccessToken, updateUser, setSessionInitialized } = authSlice.actions;
 export default authSlice.reducer;
 
 // Selectors
 export const selectCurrentUser = (state) => state.auth.user;
 export const selectAccessToken = (state) => state.auth.accessToken;
-export const selectIsAuthenticated = (state) => !!state.auth.accessToken;
+export const selectIsAuthenticated = (state) => !!state.auth.user && !!state.auth.accessToken;
 export const selectUserRole = (state) => state.auth.user?.role;
+export const selectIsSessionInitialized = (state) => state.auth.isSessionInitialized;

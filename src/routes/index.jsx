@@ -1,69 +1,55 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
-// Redux Auth Slice
 import {
-  logout,
   updateUser,
-  setCredentials,
-  selectIsAuthenticated,
   selectCurrentUser,
+  selectAccessToken,
+  setSessionInitialized,
 } from "../features/auth/authSlice";
 import { useGetMeQuery } from "../features/auth/authApi";
 
-// Route protection
 import ProtectedRoute from "../features/auth/ProtectedRoute";
-
-// Route groups
 import PublicRoutes from "./PublicRoutes";
 import UserRoutes from "./UserRoutes";
 import AdminRoutes from "./AdminRoutes";
 
-// Layouts
 import Layout from "../components/layouts/Layout";
 import AdminLayout from "../components/layouts/AdminLayout";
 import AuthLayout from "../components/layouts/AuthLayout";
 
-// Optional 404
-// import NotFound from "../components/common/NotFound";
-
 const AppRoutes = () => {
   const dispatch = useDispatch();
-  const isAuthenticated = useSelector(selectIsAuthenticated);
   const currentUser = useSelector(selectCurrentUser);
-  const isAdmin = currentUser?.role === "admin";
+  const accessToken = useSelector(selectAccessToken);
+  const hasInitialized = useRef(false);
 
-  const { data: userData, error, isLoading } = useGetMeQuery();
+  const { 
+    data: userData, 
+    isLoading,
+  } = useGetMeQuery(undefined, {
+    skip: !accessToken, // Chỉ gọi khi có accessToken
+  });
 
-  console.log(
-    "🔑 Authenticated:",
-    isAuthenticated,
-    "| Role:",
-    currentUser?.role
-  );
-
-  // 🔄 Sync user info on app load
+  // Initialize session chỉ một lần
   useEffect(() => {
-    if (userData && !isLoading) {
-      if (
-        userData.accessToken &&
-        userData.accessToken !== currentUser?.accessToken
-      ) {
-        dispatch(
-          setCredentials({
-            user: userData,
-            accessToken: userData.accessToken,
-          })
-        );
-      } else if (!userData.accessToken && userData.id !== currentUser?.id) {
+    if (hasInitialized.current) return; 
+    
+    if (isLoading) return; // Chờ /me xong
+
+    //  /me xong (dù success hay fail)
+    if (userData) {
+      // Cập nhật user info nếu khác
+      if (!currentUser || userData.id !== currentUser.id) {
         dispatch(updateUser(userData));
       }
-    } else if (error) {
-      console.log("⚠️ Invalid session, logging out...");
-      dispatch(logout());
     }
-  }, [userData, error, dispatch, isLoading, currentUser]);
+    
+    //  Mark as initialized (chỉ chạy 1 lần)
+    hasInitialized.current = true;
+    dispatch(setSessionInitialized());
+  }, [userData, isLoading, currentUser, dispatch]);
 
   return (
     <BrowserRouter>
@@ -74,21 +60,24 @@ const AppRoutes = () => {
             return <Route key={index} path={route.path} element={<Page />} />;
           })}
         </Route>
-        <Route element={<ProtectedRoute requireRole="user"><Layout /></ProtectedRoute>}>
+
+        <Route element={<ProtectedRoute requiredRole="user"><Layout /></ProtectedRoute>}>
           {UserRoutes.map((route, index) => {
             const Page = route.component;
             return <Route key={index} path={route.path} element={<Page />} />;
           })}
         </Route>
 
-        <Route path="/admin/*" element={<ProtectedRoute requiredRole="admin"><AdminLayout/></ProtectedRoute>} >
-            {AdminRoutes.map((route, index) => {
+        <Route 
+          path="/admin/*" 
+          element={<ProtectedRoute requiredRole="admin"><AdminLayout /></ProtectedRoute>}
+        >
+          {AdminRoutes.map((route, index) => {
             const Page = route.component;
             return <Route key={index} path={route.path} element={<Page />} />;
           })}
         </Route>
-        </Routes>
-
+      </Routes>
     </BrowserRouter>
   );
 };

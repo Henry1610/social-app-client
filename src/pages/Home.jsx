@@ -24,7 +24,7 @@ function Home() {
           user={{
             username: "arsenal",
             fullName: "Arsenal FC",
-            avatar: "https://i.pravatar.cc/100?img=5",
+            avatar: "/images/avatar-IG-mac-dinh-1.jpg",
             verified: true,
           }}
           media={[
@@ -32,7 +32,7 @@ function Home() {
               url: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=600&h=600",
             },
           ]}
-          content="Starting as we mean to go on 💪"
+          content="Starting as we mean to go on "
           createdAt="2025-10-14T10:00:00Z"
           likes={67357}
           commentsCount={156}
@@ -41,7 +41,7 @@ function Home() {
 
       {/* Right Sidebar */}
       <RightSidebar />
-      <FloatingDirectMessage avatarUrl="https://link-avatar.jpg" />
+      <FloatingDirectMessage avatarUrl="/images/avatar-IG-mac-dinh-1.jpg" />
     </main>
   );
 }
