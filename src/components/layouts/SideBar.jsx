@@ -13,16 +13,32 @@ import InstagramLogo1 from "../common/InstagramLogo1";
 import { useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../features/auth/authSlice";
-import { useLazySearchUsersQuery } from "../../features/Profile/profileApi";
-
+import {
+  useLazySearchUsersQuery,
+  useGetSearchHistoryQuery,
+  useClearSearchHistoryMutation,
+  useRecordSearchSelectionMutation,
+  useDeleteSearchHistoryItemMutation,
+} from "../../features/Profile/profileApi";
+import { NotificationCenter } from "../common/NotificationCenter";
 const Sidebar = () => {
   const [active, setActive] = useState(null);
   const [value, setValue] = useState("");
+
   const [triggerSearch, { data: searchData, isFetching }] =
     useLazySearchUsersQuery();
+  const { data: historyData, refetch: refetchHistory } =
+    useGetSearchHistoryQuery(
+      { page: 1, limit: 10 },
+      { skip: active !== "Tìm kiếm" }
+    );
+  const [clearHistory, { isLoading: clearing }] =
+    useClearSearchHistoryMutation();
+  const [recordSelection] = useRecordSearchSelectionMutation();
+  const [deleteHistoryItem] = useDeleteSearchHistoryItemMutation();
   const navigate = useNavigate();
   const currentUser = useSelector(selectCurrentUser);
-  const isCollapsed = active === "Tìm kiếm";
+  const isCollapsed = active === "Tìm kiếm" || active === "Thông báo";
 
   const selfProfilePath =
     currentUser?.username || currentUser?.email
@@ -38,13 +54,19 @@ const Sidebar = () => {
   ];
 
   const handleClick = (item) => {
-    if (item.label === "Tìm kiếm") {
-      setActive(active === "Tìm kiếm" ? null : "Tìm kiếm");
+    if (["Tìm kiếm", "Thông báo"].includes(item.label)) {
+      setActive(active === item.label ? null : item.label);
     } else {
       setActive(item.label);
       if (item.path) navigate(item.path);
     }
   };
+
+  useEffect(() => {
+    if (active === "Tìm kiếm" && refetchHistory) {
+      refetchHistory();
+    }
+  }, [active, refetchHistory]);
 
   useEffect(() => {
     const q = value.trim();
@@ -70,7 +92,6 @@ const Sidebar = () => {
             isCollapsed ? "justify-center" : ""
           }`}
         >
-          {" "}
           {!isCollapsed ? (
             <InstagramLogo1 className="w-40 h-auto" />
           ) : (
@@ -111,7 +132,6 @@ const Sidebar = () => {
         <div className="border-t border-gray-200 pt-3">
           <button className="flex items-center gap-4 px-3 py-3 hover:bg-gray-100 rounded-lg w-full">
             <span className="text-lg flex-shrink-0">
-              {" "}
               <Menu size={22} />
             </span>
 
@@ -129,7 +149,7 @@ const Sidebar = () => {
       {/* Search Panel */}
       <div
         className={`fixed top-0 left-[80px] h-full bg-white border-r shadow-xl transition-all duration-300 z-30 ${
-          active === "Tìm kiếm"
+          ["Tìm kiếm", "Thông báo"].includes(active)
             ? "w-[400px] opacity-100 translate-x-0"
             : "w-0 opacity-0 -translate-x-5 overflow-hidden"
         }`}
@@ -164,9 +184,18 @@ const Sidebar = () => {
             </div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-gray-500 text-sm mb-2">Gần đây</p>
-              <p className="text-[#4A5DF9]  text-sm mb-2 font-semibold">
+              <button
+                disabled={clearing}
+                onClick={async () => {
+                  try {
+                    await clearHistory().unwrap();
+                    await refetchHistory();
+                  } catch {}
+                }}
+                className="text-[#4A5DF9] text-sm mb-2 font-semibold disabled:opacity-50"
+              >
                 Xoá tất cả
-              </p>
+              </button>
             </div>
             <div className="space-y-2">
               {isFetching && (
@@ -181,7 +210,18 @@ const Sidebar = () => {
                       name={u.username}
                       desc={u.fullName}
                       avatar={u.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                      onClick={() => {
+                      onClick={async () => {
+                        try {
+                          await recordSelection({
+                            type: "user",
+                            user: {
+                              id: u.id,
+                              username: u.username,
+                              fullName: u.fullName,
+                              avatarUrl: u.avatarUrl,
+                            },
+                          }).unwrap();
+                        } catch {}
                         navigate(`/${encodeURIComponent(u.username)}`);
                         setActive(null);
                         setValue("");
@@ -191,9 +231,74 @@ const Sidebar = () => {
                 ) : (
                   <p className="text-sm text-gray-500">Không có kết quả</p>
                 ))}
+
+              {/* Show only user history entries */}
+              {!value &&
+                (historyData?.history?.length ? (
+                  historyData.history
+                    .filter((h) => h?.user)
+                    .map((h, idx) => (
+                      <HistoryUserItem
+                        key={`user-${h.user.id}-${h.t}-${idx}`}
+                        user={h.user}
+                        onDelete={async () => {
+                          try {
+                            await deleteHistoryItem({
+                              type: "user",
+                              id: h.user.id,
+                            }).unwrap();
+                            await refetchHistory();
+                          } catch {}
+                        }}
+                        onClick={async () => {
+                          try {
+                            await recordSelection({
+                              type: "user",
+                              user: {
+                                id: h.user.id,
+                                username: h.user.username,
+                                fullName: h.user.fullName,
+                                avatarUrl: h.user.avatarUrl,
+                              },
+                            }).unwrap();
+                            await refetchHistory();
+                          } catch {}
+                          navigate(`/${encodeURIComponent(h.user.username)}`);
+                          setActive(null);
+                          setValue("");
+                        }}
+                      />
+                    ))
+                ) : (
+                  <p className="text-sm text-gray-400">
+                    Chưa có tìm kiếm gần đây
+                  </p>
+                ))}
             </div>
           </div>
         )}
+        {active === "Thông báo" && (
+  <div className="p-5 h-full flex flex-col">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-lg font-semibold">Thông báo</h2>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setActive(null)}
+          className="p-1 rounded-full hover:bg-gray-100"
+        >
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+
+    {/* Danh sách thông báo */}
+    <div className="flex-1 overflow-y-auto">
+      <NotificationCenter />
+    </div>
+  </div>
+)}
+
       </div>
     </>
   );
@@ -217,6 +322,34 @@ function SearchResult({ name, desc, avatar, onClick }) {
         </div>
       </div>
       <button className="text-gray-400 hover:text-gray-600">×</button>
+    </div>
+  );
+}
+
+function HistoryUserItem({ user, onClick, onDelete }) {
+  return (
+    <div className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg">
+      <div className="flex items-center gap-3 cursor-pointer" onClick={onClick}>
+        <img
+          src={user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+          alt={user.username}
+          className="w-10 h-10 rounded-full"
+        />
+        <div>
+          <p className="font-semibold text-sm">{user.username}</p>
+          {user.fullName ? (
+            <p className="text-xs text-gray-500">{user.fullName}</p>
+          ) : null}
+        </div>
+      </div>
+      <button
+        onClick={onDelete}
+        className="text-gray-400 hover:text-gray-600 p-1"
+        aria-label="Xoá"
+        title="Xoá"
+      >
+        <X size={16} />
+      </button>
     </div>
   );
 }
