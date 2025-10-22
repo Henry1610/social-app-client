@@ -7,6 +7,7 @@ import FacebookLoginButton from "../../components/common/FacebookLoginButton";
 import FloatingInput from "../../components/common/FloatingInput";
 import Divider from "../../components/common/Divider";
 import SpriteCropped from "../../components/common/SpriteCropped";
+import { toast } from "sonner";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -34,7 +35,7 @@ const Login = () => {
       );
       navigate("/");
     } catch (err) {
-      alert(err.data?.message || "Đăng nhập thất bại");
+      toast.error(err.data?.message || "Đăng nhập thất bại");
     }
   };
 

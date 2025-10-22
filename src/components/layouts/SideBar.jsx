@@ -8,6 +8,8 @@ import {
   User,
   Menu,
   X,
+  Loader2,
+  LogOut,
 } from "lucide-react";
 import InstagramLogo1 from "../common/InstagramLogo1";
 import { useNavigate, Link } from "react-router-dom";
@@ -21,9 +23,12 @@ import {
   useDeleteSearchHistoryItemMutation,
 } from "../../features/Profile/profileApi";
 import { NotificationCenter } from "../common/NotificationCenter";
+import SearchSkeleton from "../common/SearchSkeleton";
+import useLogout from "../../features/auth/useLogout";
 const Sidebar = () => {
   const [active, setActive] = useState(null);
   const [value, setValue] = useState("");
+  const handleLogout = useLogout();
 
   const [triggerSearch, { data: searchData, isFetching }] =
     useLazySearchUsersQuery();
@@ -130,9 +135,12 @@ const Sidebar = () => {
 
         {/* Bottom menu */}
         <div className="border-t border-gray-200 pt-3">
-          <button className="flex items-center gap-4 px-3 py-3 hover:bg-gray-100 rounded-lg w-full">
+          <button 
+            onClick={handleLogout}
+            className="flex items-center gap-4 px-3 py-3 hover:bg-gray-100 rounded-lg w-full transition-colors duration-150"
+          >
             <span className="text-lg flex-shrink-0">
-              <Menu size={22} />
+              <LogOut size={22} />
             </span>
 
             <span
@@ -140,7 +148,7 @@ const Sidebar = () => {
                 isCollapsed ? "opacity-0 w-0" : "opacity-100 w-auto"
               }`}
             >
-              Thêm
+              Đăng xuất
             </span>
           </button>
         </div>
@@ -171,14 +179,18 @@ const Sidebar = () => {
                 placeholder="Tìm kiếm"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 pr-9 focus:outline-none focus:ring"
+                className="w-full border rounded-lg px-3 py-2 pr-9 focus:outline-none focus:ring-0"
               />
               {value && (
                 <button
                   onClick={() => setValue("")}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-gray-300 hover:bg-gray-400 text-gray-600 hover:text-white"
                 >
-                  <X size={14} />
+                  {isFetching ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <X size={14} />
+                  )}
                 </button>
               )}
             </div>
@@ -198,9 +210,10 @@ const Sidebar = () => {
               </button>
             </div>
             <div className="space-y-2">
-              {isFetching && (
-                <p className="text-sm text-gray-500">Đang tìm...</p>
-              )}
+              {/* Skeleton khi đang tìm kiếm */}
+              {isFetching && value && <SearchSkeleton />}
+              
+              {/* Kết quả tìm kiếm */}
               {!isFetching &&
                 value &&
                 (searchData?.users?.length ? (
@@ -228,12 +241,16 @@ const Sidebar = () => {
                       }}
                     />
                   ))
-                ) : (
+                ) : !isFetching && value ? (
                   <p className="text-sm text-gray-500">Không có kết quả</p>
-                ))}
+                ) : null)}
 
-              {/* Show only user history entries */}
+              {/* Skeleton khi loading lịch sử */}
+              {!value && !historyData && <SearchSkeleton />}
+
+              {/* Lịch sử tìm kiếm */}
               {!value &&
+                historyData &&
                 (historyData?.history?.length ? (
                   historyData.history
                     .filter((h) => h?.user)
@@ -278,27 +295,26 @@ const Sidebar = () => {
           </div>
         )}
         {active === "Thông báo" && (
-  <div className="p-5 h-full flex flex-col">
-    {/* Header */}
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold">Thông báo</h2>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setActive(null)}
-          className="p-1 rounded-full hover:bg-gray-100"
-        >
-          <X size={18} />
-        </button>
-      </div>
-    </div>
+          <div className="p-5 h-full flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Thông báo</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActive(null)}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
 
-    {/* Danh sách thông báo */}
-    <div className="flex-1 overflow-y-auto">
-      <NotificationCenter />
-    </div>
-  </div>
-)}
-
+            {/* Danh sách thông báo */}
+            <div className="flex-1 overflow-y-auto">
+              <NotificationCenter />
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

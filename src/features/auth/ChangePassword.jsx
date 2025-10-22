@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useChangePasswordMutation } from './authApi';
+import { toast } from 'sonner';
 
 const ChangePassword = () => {
   const [formData, setFormData] = useState({
@@ -14,7 +15,7 @@ const ChangePassword = () => {
     e.preventDefault();
     
     if (formData.newPassword !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      toast.error('Passwords do not match!');
       return;
     }
     
@@ -24,10 +25,10 @@ const ChangePassword = () => {
         newPassword: formData.newPassword,
       }).unwrap();
       
-      alert('Password changed successfully!');
+      toast.success('Password changed successfully!');
       setFormData({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
-      alert(err.data?.message || 'Failed to change password');
+      toast.error(err.data?.message || 'Failed to change password');
     }
   };
 

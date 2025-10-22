@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import FloatingInput from "../../components/common/FloatingInput";
 import { useResetPasswordMutation } from "./authApi";
+import { toast } from "sonner";
 
 const ResetPassword = () => {
   const location = useLocation();
@@ -18,23 +19,23 @@ const ResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!token) {
-      alert("Liên kết không hợp lệ hoặc thiếu token.");
+      toast.error("Liên kết không hợp lệ hoặc thiếu token.");
       return;
     }
     if (newPassword.length < 6) {
-      alert("Mật khẩu phải có ít nhất 6 ký tự.");
+      toast.error("Mật khẩu phải có ít nhất 6 ký tự.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert("Xác nhận mật khẩu không khớp.");
+      toast.error("Xác nhận mật khẩu không khớp.");
       return;
     }
     try {
       await resetPassword({ token, newPassword }).unwrap();
-      alert("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.");
+      toast.success("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.");
       navigate("/login");
     } catch (err) {
-      alert(err?.data?.message || "Đặt lại mật khẩu thất bại");
+      toast.error(err?.data?.message || "Đặt lại mật khẩu thất bại");
     }
   };
 

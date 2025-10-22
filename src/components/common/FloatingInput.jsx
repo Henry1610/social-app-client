@@ -26,19 +26,19 @@ const FloatingInput = ({
         placeholder=" "
         required={required}
         className={`peer w-full border border-gray-300 rounded-md px-3 pt-4 pb-2 text-sm bg-gray-50
-          focus:outline-none focus:ring-1 focus:ring-gray-400 ${showToggle ? "pr-10" : ""}`}
+          focus:outline-none focus:ring-1 focus:ring-gray-400 ${showToggle ? "pr-10" : ""}
+          autofill:bg-gray-50 autofill:shadow-[inset_0_0_0px_1000px_rgb(249,250,251)] autofill:[-webkit-text-fill-color:rgb(17,24,39)]`}
       />
 
       <label
         htmlFor={id}
-        className={`absolute left-3 text-gray-400 text-xs pointer-events-none
+        className={`absolute left-3 text-gray-400 pointer-events-none
           transition-all duration-200
           ${
             hasValue
               ? "top-1 text-[10px] translate-y-0"
-              : "top-1/2 -translate-y-1/2 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2"
-          }
-          peer-focus:top-1 peer-focus:text-[10px] peer-focus:translate-y-0`}
+              : "top-1/2 -translate-y-1/2 text-xs peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-focus:top-1 peer-focus:text-[10px] peer-focus:translate-y-0"
+          }`}
       >
         {label}
       </label>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import FloatingInput from "../../components/common/FloatingInput";
 import { useRequestResetPasswordMutation } from "./authApi";
+import { toast } from "sonner";
 import Divider from "../../components/common/Divider";
 const ForgotPassword = () => {
   const [inputValue, setInputValue] = useState("");
@@ -19,10 +20,10 @@ const ForgotPassword = () => {
     e.preventDefault();
     try {
       await requestReset(inputValue).unwrap();
-      alert("Đã gửi liên kết đặt lại mật khẩu. Vui lòng kiểm tra email.");
+      toast.success("Đã gửi liên kết đặt lại mật khẩu. Vui lòng kiểm tra email.");
     } catch (err) {
       const apiMsg = err?.data?.message || "Gửi liên kết thất bại";
-      alert(apiMsg);
+      toast.error(apiMsg);
       setRetryAfter(err?.data?.retryAfter || 0);
     }
   };

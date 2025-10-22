@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   useGetNotificationsQuery,
 } from "../../features/Profile/profileApi";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatTimeAgo } from "../../utils/formatTimeAgo";
+import NotificationSkeleton from "./NotificationSkeleton";
 
 export const NotificationCenter = () => {
   const navigate = useNavigate();
@@ -43,12 +43,7 @@ export const NotificationCenter = () => {
 
   //  Khi đang load thông báo
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 text-gray-500">
-        <Loader2 className="animate-spin mb-2" size={24} />
-        <span>Đang tải thông báo...</span>
-      </div>
-    );
+    return <NotificationSkeleton />;
   }
 
   if (notifications.length === 0) {

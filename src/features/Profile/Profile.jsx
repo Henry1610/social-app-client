@@ -13,7 +13,7 @@ import {
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
 } from "./profileApi";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Grid,
   Play,
@@ -21,17 +21,18 @@ import {
   Heart,
   MessageCircle,
   Share2,
-  UserPlus,
-  UserMinus,
   Lock,
   X,
   Loader,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../components/common/confirmToast";
 import Footer from "../../components/layouts/Footer";
+import FollowButton from "../../components/common/FollowButton";
+import ModalUserItem from "./ModalUserItem";
+import ModalSkeleton from "../../components/common/ModalSkeleton";
 export default function Profile() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -59,14 +60,22 @@ export default function Profile() {
   const followerCount = statsData?.stats?.followerCount ?? 0;
   const followingCount = statsData?.stats?.followingCount ?? 0;
   const postCount = statsData?.stats?.postCount ?? 0;
-  
+
   // Lấy danh sách người theo dõi và đang theo dõi khi modal được mở
-  const { data: followersData, isLoading: loadingFollowers, error: followersError } = useGetFollowersQuery(viewingUsername, {
-    skip: !showModal || modalType !== "followers" || !viewingUsername
+  const {
+    data: followersData,
+    isLoading: loadingFollowers,
+    error: followersError,
+  } = useGetFollowersQuery(viewingUsername, {
+    skip: !showModal || modalType !== "followers" || !viewingUsername,
   });
-  
-  const { data: followingsData, isLoading: loadingFollowings, error: followingsError } = useGetFollowingsQuery(viewingUsername, {
-    skip: !showModal || modalType !== "following" || !viewingUsername
+
+  const {
+    data: followingsData,
+    isLoading: loadingFollowings,
+    error: followingsError,
+  } = useGetFollowingsQuery(viewingUsername, {
+    skip: !showModal || modalType !== "following" || !viewingUsername,
   });
 
   const { data: followStatus, isFetching: loadingStatus } =
@@ -75,13 +84,12 @@ export default function Profile() {
   const [unfollowUser, { isLoading: unfollowing }] = useUnfollowUserMutation();
   const [cancelFollowRequest, { isLoading: unrequesting }] =
     useCancelFollowRequestMutation();
-  const [acceptFollowRequest, { isLoading: accepting }] = useAcceptFollowRequestMutation();
-  const [rejectFollowRequest, { isLoading: rejecting }] = useRejectFollowRequestMutation();
+  const [acceptFollowRequest, { isLoading: accepting }] =
+    useAcceptFollowRequestMutation();
+  const [rejectFollowRequest, { isLoading: rejecting }] =
+    useRejectFollowRequestMutation();
 
   const isPrivate = profileUser.privacySettings?.isPrivate;
-  const isFollowing = followStatus?.isFollowing;
-  const isFollower = followStatus?.isFollower;
-  const hasIncomingRequest = followStatus?.hasIncomingRequest;
 
   // Mở modal danh sách người theo dõi hoặc đang theo dõi
   const openModal = (type) => {
@@ -173,90 +181,28 @@ export default function Profile() {
               <h2 className="text-3xl font-light">
                 {profileUser?.username || "user"}
               </h2>
-
-              {followStatus?.isSelf ? (
-                <>
-                  <button className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition  ">
-                    Chỉnh sửa trang cá nhân
-                  </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition">
-                    ⚙️
-                  </button>
-                </>
-              ) : hasIncomingRequest ? (
-                // Nếu user đang xem đã gửi follow request đến user hiện tại
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={async () => {
-                      try {
-                        await acceptFollowRequest(viewingUsername).unwrap();
-                        toast.success("Đã chấp nhận lời mời theo dõi!");
-                      } catch {
-                        toast.error("Không thể chấp nhận yêu cầu này!");
-                      }
-                    }}
-                    disabled={accepting}
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition flex items-center gap-2"
-                  >
-                    {accepting ? "Đang xử lý..." : "Chấp nhận"}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await rejectFollowRequest(viewingUsername).unwrap();
-                        toast.success("Đã từ chối lời mời theo dõi!");
-                      } catch {
-                        toast.error("Không thể từ chối yêu cầu này!");
-                      }
-                    }}
-                    disabled={rejecting}
-                    className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold transition flex items-center gap-2"
-                  >
-                    {rejecting ? "Đang xử lý..." : "Từ chối"}
-                  </button>
-                  
-                  {/* Nút Nhắn tin */}
-                  <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition border-gray-300 flex items-center gap-2">
-                    Nhắn tin
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  {/* Nút Follow với 3 trạng thái */}
-                  <button
-                    onClick={onFollowToggle}
-                    disabled={
-                      following || unfollowing || unrequesting || loadingStatus
-                    }
-                    className={`px-5 py-2 rounded-lg text-sm font-semibold transition  flex items-center gap-2
-                        ${
-                          followStatus?.isFollowing
-                          ? "bg-gray-100 hover:bg-gray-200 text-gray-900"
-                          : followStatus?.isPending
-                          ? "bg-gray-200 hover:bg-gray-300 text-gray-600"
-                          : "bg-primary-btn hover:bg-primary-btn-hover text-white"
-                        }`}
-                  >
-                    {followStatus?.isFollowing ? (
-                      <UserMinus size={16} />
-                    ) : (
-                      <UserPlus size={16} />
-                    )}
-                    {followStatus?.isFollowing
-                      ? "Đang theo dõi"
-                      : followStatus?.isPending
-                      ? "Đã yêu cầu"
-                      : isFollower
-                      ? "Theo dõi lại"
-                      : "Theo dõi"}
-                  </button>
-
-                  {/* Nút Nhắn tin (chỉ hiển thị khi đã follow hoặc tài khoản công khai) */}
-                  <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition border-gray-300 flex items-center gap-2">
-                    Nhắn tin
-                  </button>
-                </div>
-              )}
+              <FollowButton
+                followStatus={followStatus}
+                viewingUsername={viewingUsername}
+                following={following}
+                unfollowing={unfollowing}
+                unrequesting={unrequesting}
+                loadingStatus={loadingStatus}
+                onFollowToggle={onFollowToggle}
+                acceptFollowRequest={acceptFollowRequest}
+                rejectFollowRequest={rejectFollowRequest}
+                accepting={accepting}
+                rejecting={rejecting}
+                isChatButtonVisible={true}
+              >
+                {/* Custom actions cho trường hợp isSelf - bạn có thể tùy chỉnh ở đây */}
+                <button className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition">
+                  Chỉnh sửa trang cá nhân
+                </button>
+                <button className="p-2 hover:bg-gray-100 rounded-lg transition">
+                  <Settings size={20} />
+                </button>
+              </FollowButton>
             </div>
             {/* Thống kê */}
             <div className="flex gap-10 mb-6 text-base">
@@ -264,15 +210,15 @@ export default function Profile() {
                 <strong>{postCount}</strong>{" "}
                 <span className="text-gray-400">bài viết</span>
               </span>
-              <span 
-                onClick={() => openModal("followers")} 
+              <span
+                onClick={() => openModal("followers")}
                 className="cursor-pointer hover:opacity-80 transition"
               >
                 <strong>{followerCount}</strong>{" "}
                 <span className="text-gray-400">người theo dõi</span>
               </span>
-              <span 
-                onClick={() => openModal("following")} 
+              <span
+                onClick={() => openModal("following")}
                 className="cursor-pointer hover:opacity-80 transition"
               >
                 <span className="text-gray-400">Đang theo dõi</span>{" "}
@@ -289,7 +235,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {!isSelf && isPrivate && !isFollowing ? (
+        {!isSelf && isPrivate && !followStatus?.isFollowing ? (
           <div className="border-t border-gray-200 my-6 pt-8 flex flex-col items-center text-center">
             <div className="flex items-center gap-3 mb-3 p-16">
               <div className="flex items-center justify-center w-20 h-20 rounded-full border border-gray-300">
@@ -508,139 +454,126 @@ export default function Profile() {
 
       {/* Modal hiển thị danh sách người theo dõi hoặc đang theo dõi */}
       {showModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-xl w-full max-w-md min-h-[400px] max-h-[80vh] flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center border-b p-4">
-        <div className="w-6"></div>
-        <h3 className="text-base font-semibold">
-          {modalType === "followers" ? "Người theo dõi" : "Đang theo dõi"}
-        </h3>
-        <button
-          onClick={closeModal}
-          className="p-1 hover:bg-gray-100 rounded-full"
-        >
-          <X size={24} className="text-gray-600" />
-        </button>
-      </div>
-      
-      {/* Search Bar */}
-      <div className="p-3 border-b">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-lg min-h-[400px] max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center  pt-2 px-2">
+              <div className="w-6"></div>
+              <h3 className="text-base font-semibold">
+                {modalType === "followers" ? "Người theo dõi" : "Đang theo dõi"}
+              </h3>
+              <button
+                onClick={closeModal}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X size={24} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Search Bar */}
+            <div className="p-3 border-b">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:bg-gray-200 border-0 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto">
+              {modalType === "followers" ? (
+                loadingFollowers ? (
+                  <ModalSkeleton />
+                ) : followersError?.status === 403 ? (
+                  <div className="text-center py-10">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Lock className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-600 font-medium mb-2">
+                      Tài khoản này là riêng tư
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Bạn cần theo dõi để xem danh sách người theo dõi
+                    </p>
+                  </div>
+                ) : followersData?.followers?.length > 0 ? (
+                  <div>
+                    {followersData.followers.map((user) => 
+                  {console.log(user);
+                  return (
+                      <ModalUserItem
+                        key={user.id}
+                        user={user}
+                        currentUserId={currentUser?.id}
+                        onClose={closeModal}
+                        isFollower={true}
+                        isSelfProfile={isSelf}
+                      />
+                    )})}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-500">
+                    Không có người theo dõi nào
+                  </div>
+                )
+              ) : modalType === "following" ? (
+                loadingFollowings ? (
+                  <ModalSkeleton />
+                ) : followingsError?.status === 403 ? (
+                  <div className="text-center py-10">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <Lock className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-600 font-medium mb-2">
+                      Tài khoản này là riêng tư
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Bạn cần theo dõi để xem danh sách đang theo dõi
+                    </p>
+                  </div>
+                ) : followingsData?.followings?.length > 0 ? (
+                  <div>
+                    {followingsData.followings.map((user) => 
+                    
+                    {console.log(user);
+                    return (
+                      <ModalUserItem
+                        key={user.id}
+                        user={user}
+                        currentUserId={currentUser?.id}
+                        onClose={closeModal}
+                        isFollower={false}
+                        isSelfProfile={isSelf}
+                      />
+                    )})}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-500">
+                    Không đang theo dõi ai
+                  </div>
+                )
+              ) : null}
+            </div>
           </div>
-          <input
-            type="text"
-            placeholder="Tìm kiếm"
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:bg-gray-200 border-0 text-sm"
-          />
         </div>
-      </div>
-      
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto">
-        {modalType === "followers" ? (
-          loadingFollowers ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader className="animate-spin" />
-            </div>
-          ) : followersError?.status === 403 ? (
-            <div className="text-center py-10">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                <Lock className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-600 font-medium mb-2">Tài khoản này là riêng tư</p>
-              <p className="text-sm text-gray-500">
-                Bạn cần theo dõi để xem danh sách người theo dõi
-              </p>
-            </div>
-          ) : followersData?.followers?.length > 0 ? (
-            <div>
-              {followersData.followers.map(user => (
-                <div key={user.id} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <img 
-                      src={user.avatarUrl} 
-                      alt={user.username} 
-                      className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{user.username}</p>
-                      <p className="text-sm text-gray-500 truncate">{user.fullName}</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      closeModal();
-                      navigate(`/${user.username}`);
-                    }}
-                    className="px-6 py-1.5 text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition ml-3 flex-shrink-0"
-                  >
-                    Theo dõi
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-10 text-gray-500">
-              Không có người theo dõi nào
-            </div>
-          )
-        ) : modalType === "following" ? (
-          loadingFollowings ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader className="animate-spin" />
-            </div>
-          ) : followingsError?.status === 403 ? (
-            <div className="text-center py-10">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                <Lock className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-600 font-medium mb-2">Tài khoản này là riêng tư</p>
-              <p className="text-sm text-gray-500">
-                Bạn cần theo dõi để xem danh sách đang theo dõi
-              </p>
-            </div>
-          ) : followingsData?.followings?.length > 0 ? (
-            <div>
-              {followingsData.followings.map(user => (
-                <div key={user.id} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <img 
-                      src={user.avatarUrl} 
-                      alt={user.username} 
-                      className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{user.username}</p>
-                      <p className="text-sm text-gray-500 truncate">{user.fullName}</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      closeModal();
-                      navigate(`/${user.username}`);
-                    }}
-                    className="px-4 py-1.5 text-sm font-semibold bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition ml-3 flex-shrink-0"
-                  >
-                    Đang theo dõi
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-10 text-gray-500">
-              Không đang theo dõi ai
-            </div>
-          )
-        ) : null}
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 }

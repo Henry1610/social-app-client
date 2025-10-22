@@ -5,6 +5,7 @@ import { useSendOtpMutation, useVerifyOtpAndRegisterMutation } from "./authApi";
 import { setCredentials } from "./authSlice";
 import FloatingInput from "../../components/common/FloatingInput";
 import SpriteCropped from "../../components/common/SpriteCropped";
+import { toast } from "sonner";
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -43,7 +44,7 @@ const Register = () => {
     } catch (err) {
       const apiMsg =
         err?.data?.message || err?.data?.code || "Gửi OTP thất bại";
-      alert(apiMsg);
+      toast.error(apiMsg);
 
       setRetryAfter(err?.data?.retryAfter || 0);
     }
@@ -70,7 +71,7 @@ const Register = () => {
     } catch (err) {
       const apiMsg =
         err?.data?.message || err?.data?.code || "Đăng ký thất bại";
-      alert(apiMsg);
+      toast.error(apiMsg);
     }
   };
 
