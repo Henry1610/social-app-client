@@ -6,13 +6,12 @@ import {
   Heart,
   PlusSquare,
   User,
-  Menu,
   X,
   Loader2,
   LogOut,
 } from "lucide-react";
 import InstagramLogo1 from "../common/InstagramLogo1";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../features/auth/authSlice";
 import {
@@ -21,7 +20,7 @@ import {
   useClearSearchHistoryMutation,
   useRecordSearchSelectionMutation,
   useDeleteSearchHistoryItemMutation,
-} from "../../features/Profile/profileApi";
+} from "../../features/profile/profileApi";
 import { NotificationCenter } from "../common/NotificationCenter";
 import SearchSkeleton from "../common/SearchSkeleton";
 import useLogout from "../../features/auth/useLogout";
@@ -42,8 +41,9 @@ const Sidebar = () => {
   const [recordSelection] = useRecordSearchSelectionMutation();
   const [deleteHistoryItem] = useDeleteSearchHistoryItemMutation();
   const navigate = useNavigate();
+  const location = useLocation();
   const currentUser = useSelector(selectCurrentUser);
-  const isCollapsed = active === "Tìm kiếm" || active === "Thông báo";
+  const isCollapsed = active === "Tìm kiếm" || active === "Thông báo" || location.pathname === "/chat";
 
   const selfProfilePath =
     currentUser?.username || currentUser?.email
@@ -52,7 +52,7 @@ const Sidebar = () => {
   const menuItems = [
     { icon: <Home size={22} />, label: "Trang chủ", path: "/" },
     { icon: <Search size={22} />, label: "Tìm kiếm" },
-    { icon: <Send size={22} />, label: "Tin nhắn" },
+    { icon: <Send size={22} />, label: "Tin nhắn", path: "/chat" },
     { icon: <Heart size={22} />, label: "Thông báo" },
     { icon: <PlusSquare size={22} />, label: "Tạo" },
     { icon: <User size={22} />, label: "Trang cá nhân", path: selfProfilePath },
@@ -86,27 +86,30 @@ const Sidebar = () => {
     <>
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full border-r border-gray-200 p-4 flex flex-col justify-between bg-white z-40 transition-all duration-300 ${
-          isCollapsed ? "w-[80px]" : "w-[250px]"
-        }`}
+        className="fixed left-0 top-0 h-full border-r border-gray-200 p-4 flex flex-col justify-between bg-white z-40 transition-all duration-300"
+        style={{
+          width: isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)',
+          '--sidebar-current-width': isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)',
+        }}
       >
         {/* Logo */}
         <Link
-          to="/"
-          className={`h-[80px] flex items-center transition-all duration-300 ${
-            isCollapsed ? "justify-center" : ""
-          }`}
-        >
-          {!isCollapsed ? (
-            <InstagramLogo1 className="w-40 h-auto" />
-          ) : (
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png"
-              alt="Logo nhỏ"
-              className="w-8 h-8"
-            />
-          )}
-        </Link>
+  to="/"
+  className={`flex items-center transition-all duration-300 ${
+    isCollapsed ? "justify-center" : ""
+  } h-[60px] sm:h-[70px] md:h-[80px]`}
+>
+  {!isCollapsed ? (
+    <InstagramLogo1 className="w-32 sm:w-36 md:w-40 h-auto" />
+  ) : (
+    <img
+      src="https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png"
+      alt="Logo nhỏ"
+      className="w-7 sm:w-8 h-auto"
+    />
+  )}
+</Link>
+
 
         {/* Menu items */}
         <nav className="flex-1">
@@ -135,7 +138,7 @@ const Sidebar = () => {
 
         {/* Bottom menu */}
         <div className="border-t border-gray-200 pt-3">
-          <button 
+          <button
             onClick={handleLogout}
             className="flex items-center gap-4 px-3 py-3 hover:bg-gray-100 rounded-lg w-full transition-colors duration-150"
           >
@@ -212,7 +215,7 @@ const Sidebar = () => {
             <div className="space-y-2">
               {/* Skeleton khi đang tìm kiếm */}
               {isFetching && value && <SearchSkeleton />}
-              
+
               {/* Kết quả tìm kiếm */}
               {!isFetching &&
                 value &&
@@ -312,6 +315,27 @@ const Sidebar = () => {
             {/* Danh sách thông báo */}
             <div className="flex-1 overflow-y-auto">
               <NotificationCenter />
+            </div>
+          </div>
+        )}
+        {active === "Hộp thư" && (
+          <div className="p-5 h-full flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Hộp Thư</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActive(null)}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Danh sách thông báo */}
+            <div className="flex-1 overflow-y-auto">
+              {/* <NotificationCenter /> */}
             </div>
           </div>
         )}

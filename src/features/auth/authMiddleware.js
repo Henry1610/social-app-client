@@ -23,6 +23,7 @@ export const authMiddleware = (store) => (next) => async (action) => {
     const accessToken = state.auth.accessToken;
 
     if (accessToken) {
+      console.log(' New token received, scheduling refresh...');
       scheduleTokenRefresh(store, accessToken);
     }
   }
@@ -56,7 +57,7 @@ const scheduleTokenRefresh = (store, token) => {
   } else {
     // Schedule refresh vào lúc: (expiresIn - refreshThreshold) giây
     const delayMs = (expiresIn - refreshThreshold) * 1000;
-    console.log(`⏰ Scheduled token refresh in ${delayMs / 1000}s`);
+    console.log(`⏰ Scheduled token refresh in ${Math.round(delayMs / 1000)}s`);
 
     refreshTimeout = setTimeout(() => {
       console.log('🔄 Proactive token refresh...');

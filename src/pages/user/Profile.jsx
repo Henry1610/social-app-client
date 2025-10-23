@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
-import { selectCurrentUser } from "../auth/authSlice";
+import { selectCurrentUser } from "../../features/auth/authSlice";
 import {
   useGetFollowStatsQuery,
   useGetPublicProfileQuery,
@@ -12,7 +12,7 @@ import {
   useCancelFollowRequestMutation,
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
-} from "./profileApi";
+} from "../../features/profile/profileApi";
 import { useParams } from "react-router-dom";
 import {
   Grid,
@@ -23,15 +23,15 @@ import {
   Share2,
   Lock,
   X,
-  Loader,
   Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../components/common/confirmToast";
 import Footer from "../../components/layouts/Footer";
 import FollowButton from "../../components/common/FollowButton";
-import ModalUserItem from "./ModalUserItem";
+import ModalUserItem from "../../features/profile/ModalUserItem";
 import ModalSkeleton from "../../components/common/ModalSkeleton";
+import ProfileSkeleton from "../../components/common/ProfileSkeleton";
 export default function Profile() {
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
@@ -46,7 +46,7 @@ export default function Profile() {
     currentUser?.username &&
     viewingUsername === currentUser.username;
 
-  const { data: publicProfileData } = useGetPublicProfileQuery(
+  const { data: publicProfileData, isLoading: loadingPublicProfile } = useGetPublicProfileQuery(
     viewingUsername,
     { skip: !viewingUsername || isSelf }
   );
@@ -54,7 +54,7 @@ export default function Profile() {
     ? currentUser
     : publicProfileData?.user || currentUser;
 
-  const { data: statsData } = useGetFollowStatsQuery(viewingUsername, {
+  const { data: statsData, isLoading: loadingStats } = useGetFollowStatsQuery(viewingUsername, {
     skip: !viewingUsername,
   });
   const followerCount = statsData?.stats?.followerCount ?? 0;
@@ -89,7 +89,14 @@ export default function Profile() {
   const [rejectFollowRequest, { isLoading: rejecting }] =
     useRejectFollowRequestMutation();
 
-  const isPrivate = profileUser.privacySettings?.isPrivate;
+  const isPrivate = profileUser?.privacySettings?.isPrivate;
+
+  // Hiển thị skeleton khi đang tải dữ liệu - phải đợi tất cả API cần thiết
+  const isLoadingProfileData = (!isSelf && loadingPublicProfile) || loadingStats || loadingStatus;
+  
+  if (isLoadingProfileData) {
+    return <ProfileSkeleton />;
+  }
 
   // Mở modal danh sách người theo dõi hoặc đang theo dõi
   const openModal = (type) => {

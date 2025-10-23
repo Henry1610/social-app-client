@@ -1,9 +1,9 @@
-import RightSidebar from "../components/layouts/RightSideBar";
-import Post from "../components/common/Post";
-import FloatingDirectMessage from "../components/common/FloatingDirectMessage";
+import RightSidebar from "../../components/layouts/RightSideBar";
+import Post from "../../components/common/Post";
+import FloatingDirectMessage from "../../components/common/FloatingDirectMessage";
 function Home() {
   return (
-    <main className="flex-1 ml-[var(--feed-sidebar-width)] flex justify-center">
+    <main className="flex-1 feed-layout flex justify-center">
       {/* Feed Section */}
       <section className="flex-1 max-w-[700px] py-6">
         {/* Stories Bar */}

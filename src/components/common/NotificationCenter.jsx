@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useGetNotificationsQuery,
-} from "../../features/Profile/profileApi";
+} from "../../features/profile/profileApi";
 import { toast } from "sonner";
 import { formatTimeAgo } from "../../utils/formatTimeAgo";
 import NotificationSkeleton from "./NotificationSkeleton";

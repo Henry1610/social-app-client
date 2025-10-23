@@ -10,6 +10,7 @@ import {
 import { toast } from "react-hot-toast";
 import FollowButton from "../../components/common/FollowButton";
 import confirmToast from "../../components/common/confirmToast";
+import ModalSkeleton from "../../components/common/ModalSkeleton";
 
 const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSelfProfile = false }) => {
   const navigate = useNavigate();
@@ -20,11 +21,19 @@ const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSel
   const [removeFollower, { isLoading: removing }] = useRemoveFollowerMutation();
   
   // Sử dụng RTK Query cache thay vì local state
-  const { data: followStatus } = useGetFollowStatusQuery(user.username, {
-    skip: user.id === currentUserId // Skip nếu là chính mình
+  const { data: followStatus, isFetching: loadingFollowStatus, isLoading: initialLoading } = useGetFollowStatusQuery(user.username, {
+    skip: user.id === currentUserId, // Skip nếu là chính mình
+    refetchOnMountOrArgChange: false, // Không refetch khi component mount lại
+    refetchOnFocus: false, // Không refetch khi focus
+    refetchOnReconnect: false // Không refetch khi reconnect
   });
 
   const isSelf = user.id === currentUserId;
+
+  // Hiển thị skeleton khi đang loading
+  if (initialLoading || loadingFollowStatus) {
+    return <ModalSkeleton count={1} showButtons={true} />;
+  }
 
   const handleFollowToggle = async () => {
     if (following || unfollowing) return; // Prevent multiple clicks
@@ -91,7 +100,7 @@ const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSel
             following={following}
             unfollowing={unfollowing}
             unrequesting={false}
-            loadingStatus={false}
+            loadingStatus={loadingFollowStatus}
             onFollowToggle={handleFollowToggle}
             acceptFollowRequest={acceptFollowRequest}
             rejectFollowRequest={rejectFollowRequest}

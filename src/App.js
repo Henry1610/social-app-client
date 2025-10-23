@@ -4,6 +4,7 @@ import { updateAccessToken, logout } from './features/auth/authSlice';
 import { useRefreshTokenMutation } from './features/auth/authApi';
 import AppRoutes from './routes';
 import './App.css';
+import './styles/sidebar.css';
 import InstagramSpinner from './components/common/InstagramSpinner';
 import NotificationToast from './components/common/NotificationToast';
 import { useSocket } from './hooks/useSocket';

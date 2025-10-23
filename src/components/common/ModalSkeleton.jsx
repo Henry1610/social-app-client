@@ -1,9 +1,9 @@
 import React from "react";
 
-const ModalSkeleton = () => {
+const ModalSkeleton = ({ count = 8, showButtons = true }) => {
   return (
     <div className="space-y-2">
-      {Array.from({ length: 8 }).map((_, index) => (
+      {Array.from({ length: count }).map((_, index) => (
         <div key={index} className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3 flex-1">
             {/* Avatar skeleton */}
@@ -16,11 +16,13 @@ const ModalSkeleton = () => {
             </div>
           </div>
           
-          {/* Button skeleton */}
-          <div className="flex items-center gap-2">
-            <div className="h-8 bg-gray-200 rounded-lg animate-pulse w-20"></div>
-            <div className="h-8 bg-gray-200 rounded-lg animate-pulse w-12"></div>
-          </div>
+          {/* Button skeleton - chỉ hiện khi showButtons = true */}
+          {showButtons && (
+            <div className="flex items-center gap-2">
+              <div className="h-8 bg-gray-200 rounded-lg animate-pulse w-20"></div>
+              <div className="h-8 bg-gray-200 rounded-lg animate-pulse w-12"></div>
+            </div>
+          )}
         </div>
       ))}
     </div>
