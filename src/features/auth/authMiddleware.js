@@ -23,7 +23,6 @@ export const authMiddleware = (store) => (next) => async (action) => {
     const accessToken = state.auth.accessToken;
 
     if (accessToken) {
-      console.log(' New token received, scheduling refresh...');
       scheduleTokenRefresh(store, accessToken);
     }
   }
@@ -42,7 +41,7 @@ const scheduleTokenRefresh = (store, token) => {
 
   const decoded = decodeToken(token);
   if (!decoded || !decoded.exp) {
-    console.warn('⚠️ Cannot decode token expiration');
+    console.warn(' Cannot decode token expiration');
     return;
   }
 
@@ -52,15 +51,14 @@ const scheduleTokenRefresh = (store, token) => {
 
   // Nếu token sắp hết hạn (< 1 phút) hoặc đã hết, refresh ngay
   if (expiresIn <= refreshThreshold) {
-    console.log('🔄 Token sắp hết hạn, refresh ngay...');
+    console.log(' Token sắp hết hạn, refresh ngay...');
     refreshAccessToken(store);
   } else {
     // Schedule refresh vào lúc: (expiresIn - refreshThreshold) giây
     const delayMs = (expiresIn - refreshThreshold) * 1000;
-    console.log(`⏰ Scheduled token refresh in ${Math.round(delayMs / 1000)}s`);
 
     refreshTimeout = setTimeout(() => {
-      console.log('🔄 Proactive token refresh...');
+      console.log(' Proactive token refresh...');
       refreshAccessToken(store);
     }, delayMs);
   }

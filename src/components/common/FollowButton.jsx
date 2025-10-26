@@ -1,5 +1,7 @@
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, MessageCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { useCreateConversationMutation } from "../../features/chat/chatApi";
 
 const FollowButton = ({
   followStatus,
@@ -16,6 +18,44 @@ const FollowButton = ({
   children, // Để truyền custom actions cho trường hợp isSelf
   isChatButtonVisible
 }) => {
+  const [createConversation, { isLoading: isCreatingConversation }] = useCreateConversationMutation();
+  const navigate = useNavigate();
+
+  // Xử lý khi nhấn nút nhắn tin
+  const handleStartChat = async () => {
+    console.log('handleStartChat called');
+    console.log('viewingUsername:', viewingUsername);
+    
+    if (!viewingUsername) {
+      console.log('Missing viewingUsername');
+      toast.error("Không thể lấy thông tin người dùng");
+      return;
+    }
+
+    try {
+      // Tạo conversation với username, backend sẽ tự tìm userId
+      const result = await createConversation({
+        type: 'DIRECT',
+        participantUsername: viewingUsername // Truyền username thay vì userId
+      }).unwrap();
+
+      toast.success("Đã mở cuộc trò chuyện");
+      
+      // Dẫn đến trang chat với conversation ID
+      const conversationId = result.data?.conversation?.id;
+      if (conversationId) {
+        console.log('Navigating to:', `/chat/${conversationId}`);
+        navigate(`/chat/${conversationId}`);
+      } else {
+        console.error('Không có conversation ID trong response');
+        toast.error("Không thể lấy ID cuộc trò chuyện");
+      }
+    } catch (error) {
+      console.error('Lỗi khi tạo conversation:', error);
+      toast.error("Không thể tạo cuộc trò chuyện");
+    }
+  };
+
   // Nếu là chính mình, render children (custom actions)
   if (followStatus?.isSelf) {
     return <>{children}</>;
@@ -55,9 +95,16 @@ const FollowButton = ({
         </button>
         
         {/* Nút Nhắn tin */}
-        {isChatButtonVisible && (<button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition border-gray-300 flex items-center gap-2">
-          Nhắn tin
-        </button>)}
+        {isChatButtonVisible && (
+          <button 
+            onClick={handleStartChat}
+            disabled={isCreatingConversation}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition border-gray-300 flex items-center gap-2 disabled:opacity-50"
+          >
+            <MessageCircle size={16} />
+            {isCreatingConversation ? "Đang tạo..." : "Nhắn tin"}
+          </button>
+        )}
         
       </div>
     );
@@ -97,10 +144,14 @@ const FollowButton = ({
 
       {/* Nút Nhắn tin */}
       {isChatButtonVisible && (
-
-      <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition border-gray-300 flex items-center gap-2">
-        Nhắn tin
-      </button>
+        <button 
+          onClick={handleStartChat}
+          disabled={isCreatingConversation}
+          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition border-gray-300 flex items-center gap-2 disabled:opacity-50"
+        >
+          <MessageCircle size={16} />
+          {isCreatingConversation ? "Đang tạo..." : "Nhắn tin"}
+        </button>
       )}
     </div>
   );

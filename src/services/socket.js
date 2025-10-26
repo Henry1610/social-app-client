@@ -23,6 +23,9 @@ class SocketService {
     this.socket.on('connect', () => {
       this.isConnected = true;
       this.emit('connection:established');
+      
+      // Notify server that user is online
+      this.socket.emit('chat:user_online');
     });
 
     this.socket.on('disconnect', () => {
@@ -44,6 +47,14 @@ class SocketService {
     this.socket.on('follow:accepted', (data) => this.emit('follow:accepted', data));
     this.socket.on('follow:rejected', (data) => this.emit('follow:rejected', data));
 
+    // Chat events
+    this.socket.on('chat:new_message', (data) => this.emit('chat:new_message', data));
+    this.socket.on('chat:message_read', (data) => this.emit('chat:message_read', data));
+    this.socket.on('chat:user_typing', (data) => this.emit('chat:user_typing', data));
+    this.socket.on('chat:user_status', (data) => this.emit('chat:user_status', data));
+    this.socket.on('chat:joined_conversation', (data) => this.emit('chat:joined_conversation', data));
+    this.socket.on('chat:unread_count_update', (data) => this.emit('chat:unread_count_update', data));
+    this.socket.on('chat:error', (data) => this.emit('chat:error', data));
 
     return this.socket;
   }
@@ -53,6 +64,37 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.isConnected = false;
+    }
+  }
+
+  // Chat methods
+  joinConversation(conversationId) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:join_conversation', conversationId);
+    }
+  }
+
+  leaveConversation(conversationId) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:leave_conversation', conversationId);
+    }
+  }
+
+  sendMessage(data) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:send_message', data);
+    }
+  }
+
+  setTyping(conversationId, isTyping) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:typing', { conversationId, isTyping });
+    }
+  }
+
+  markMessageAsRead(messageId) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:mark_read', { messageId });
     }
   }
 
@@ -85,16 +127,6 @@ class SocketService {
       });
     }
   }
-
-  getSocket() {
-    return this.socket;
-  }
-
-  isSocketConnected() {
-    return this.isConnected;
-  }
 }
 
-// Export singleton instance
-export const socketService = new SocketService();
-export default socketService;
+export default new SocketService();

@@ -25,17 +25,14 @@ const AppRoutes = () => {
   const accessToken = useSelector(selectAccessToken);
   const hasInitialized = useRef(false);
 
-  const { 
-    data: userData, 
-    isLoading,
-  } = useGetMeQuery(undefined, {
+  const { data: userData, isLoading } = useGetMeQuery(undefined, {
     skip: !accessToken, // Chỉ gọi khi có accessToken
   });
 
   // Initialize session chỉ một lần
   useEffect(() => {
-    if (hasInitialized.current) return; 
-    
+    if (hasInitialized.current) return;
+
     if (isLoading) return; // Chờ /me xong
 
     //  /me xong (dù success hay fail)
@@ -45,7 +42,7 @@ const AppRoutes = () => {
         dispatch(updateUser(userData));
       }
     }
-    
+
     //  Mark as initialized (chỉ chạy 1 lần)
     hasInitialized.current = true;
     dispatch(setSessionInitialized());
@@ -61,20 +58,38 @@ const AppRoutes = () => {
           })}
         </Route>
 
-        <Route element={<ProtectedRoute requiredRole="user"><Layout /></ProtectedRoute>}>
+        <Route
+          element={
+            <ProtectedRoute requiredRole="user">
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
           {UserRoutes.map((route, index) => {
             const Page = route.component;
             return <Route key={index} path={route.path} element={<Page />} />;
           })}
         </Route>
 
-        <Route 
-          path="/admin/*" 
-          element={<ProtectedRoute requiredRole="admin"><AdminLayout /></ProtectedRoute>}
+        <Route
+          element={
+            <ProtectedRoute requiredRole="user">
+              <Layout />
+            </ProtectedRoute>
+          }
         >
-          {AdminRoutes.map((route, index) => {
+          {UserRoutes.map((route, index) => {
             const Page = route.component;
-            return <Route key={index} path={route.path} element={<Page />} />;
+            return (
+              <Route key={index} path={route.path} element={<Page />}>
+                {route.children?.map((child, i) => {
+                  const ChildPage = child.component;
+                  return (
+                    <Route key={i} path={child.path} element={<ChildPage />} />
+                  );
+                })}
+              </Route>
+            );
           })}
         </Route>
       </Routes>

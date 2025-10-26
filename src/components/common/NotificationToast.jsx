@@ -1,17 +1,17 @@
 import React, { useEffect } from "react";
 import { Toaster, toast } from "sonner";
-import { socketService } from "../../services/socket.js";
+import socketService from "../../services/socket.js";
 import { Heart, MessageCircle, UserPlus, Repeat2, Bell } from "lucide-react";
 
 const NotificationToast = () => {
   useEffect(() => {
     const handleNotification = (data) => {
 
-      const { type, from, message, content, text } = data;
-      const msg = message || content || text || "Bạn có thông báo mới!";  
+      const { type, from, message } = data;
+      const msg = message || "Bạn có thông báo mới!";  
       const username = from?.username || "Người dùng";
       const avatar = from?.avatarUrl || "/default-avatar.png";
-
+     
       toast.custom(
         () => (
           <div
@@ -58,7 +58,7 @@ const NotificationToast = () => {
       case "REPOST":
         return <Repeat2  size={18} />;
       default:
-        return <Bell  size={18} />;
+        return ;
     }
   };
 

@@ -43,7 +43,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = useSelector(selectCurrentUser);
-  const isCollapsed = active === "Tìm kiếm" || active === "Thông báo" || location.pathname === "/chat";
+  const isCollapsed = active === "Tìm kiếm" || active === "Thông báo" || location.pathname.startsWith("/chat");
 
   const selfProfilePath =
     currentUser?.username || currentUser?.email
