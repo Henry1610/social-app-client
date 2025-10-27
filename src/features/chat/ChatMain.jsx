@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Send, Smile, Paperclip } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useGetPublicProfileQuery } from "../profile/profileApi";
@@ -18,7 +18,7 @@ const ChatMain = ({ onStartNewMessage }) => {
   const { selectedConversation, setSelectedConversation } = useChat();
   const { username, conversationId } = useParams();
   const [message, setMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -52,6 +52,10 @@ const ChatMain = ({ onStartNewMessage }) => {
         members: membersData.data.members,
       };
       setSelectedConversation(conversation);
+      
+      // Invalidate cache và refetch messages khi chuyển conversation
+      chatApi.util.invalidateTags(["Message"]);
+      chatApi.util.invalidateTags([{ type: "Message", id: conversation.id }]);
     }
   }, [conversationData, membersData, setSelectedConversation]);
 
@@ -79,6 +83,17 @@ const ChatMain = ({ onStartNewMessage }) => {
     { skip: !selectedConversation?.id }
   );
 
+  // Refetch messages khi chuyển conversation
+  const refetchMessages = useCallback(() => {
+    if (selectedConversation?.id) {
+      refetch();
+    }
+  }, [selectedConversation?.id, refetch]);
+
+  useEffect(() => {
+    refetchMessages();
+  }, [refetchMessages]);
+
   const messages = useMemo(() => {
     return messagesData?.data?.messages || [];
   }, [messagesData?.data?.messages]);
@@ -100,6 +115,9 @@ const ChatMain = ({ onStartNewMessage }) => {
 
     // Join conversation room
     socketService.joinConversation(selectedConversation.id);
+    
+    // Refetch messages ngay khi join conversation để đảm bảo có tin nhắn mới nhất
+    refetch();
 
     // Listen for new messages
     const handleNewMessage = (data) => {
@@ -118,6 +136,9 @@ const ChatMain = ({ onStartNewMessage }) => {
         setTimeout(() => {
           scrollToBottom();
         }, 100);
+      } else {
+        // Tin nhắn từ conversation khác - chỉ invalidate cache để sidebar cập nhật
+        chatApi.util.invalidateTags(["Conversation"]);
       }
     };
 
@@ -151,7 +172,7 @@ const ChatMain = ({ onStartNewMessage }) => {
       socketService.off("chat:user_status", handleUserStatus);
       socketService.leaveConversation(selectedConversation.id);
     };
-  }, [selectedConversation?.id, currentUserId]);
+  }, [selectedConversation?.id, currentUserId, refetch]);
 
   // Auto scroll to bottom
   const scrollToBottom = () => {
@@ -355,11 +376,11 @@ const ChatMain = ({ onStartNewMessage }) => {
                       const showAvatar =
                         index === 0 ||
                         messages[index - 1]?.senderId !== msg.senderId;
-                      const showTime =
-                        index === messages.length - 1 ||
-                        new Date(msg.createdAt).getTime() -
-                          new Date(messages[index + 1]?.createdAt).getTime() >
-                          300000; // 5 minutes
+                      // const showTime =
+                      //   index === messages.length - 1 ||
+                      //   new Date(msg.createdAt).getTime() -
+                      //     new Date(messages[index + 1]?.createdAt).getTime() >
+                      //     300000; // 5 minutes
 
                       // Check if we need to show date separator
                       const currentDate = new Date(

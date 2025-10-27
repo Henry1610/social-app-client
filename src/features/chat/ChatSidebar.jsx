@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { Search, User, ChevronDown, Edit } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { Search, Edit } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useGetConversationsQuery } from "./chatApi";
 import { selectCurrentUser } from "../auth/authSlice";
 import socketService from "../../services/socket";
+import { formatOfflineTime } from "../../utils/formatTimeAgo";
 
 const ChatSidebar = ({
   selectedConversation,
@@ -15,11 +16,14 @@ const ChatSidebar = ({
   const currentUser = useSelector(selectCurrentUser);
   
   // Lấy danh sách conversations từ API
-  const { data: conversationsData, isLoading, error, refetch } = useGetConversationsQuery();
-  const conversations = conversationsData?.data?.conversations || [];
+  const { data: conversationsData, isLoading, refetch } = useGetConversationsQuery();
+  const conversations = useMemo(() => conversationsData?.data?.conversations || [], [conversationsData?.data?.conversations]);
 
   // State để track typing users theo conversation
   const [typingUsers, setTypingUsers] = useState({});
+  
+  // State để track online users
+  const [onlineUsers, setOnlineUsers] = useState({});
 
   // Listen for unread count updates
   useEffect(() => {
@@ -52,7 +56,48 @@ const ChatSidebar = ({
       socketService.off('chat:user_typing', handleTyping);
     };
   }, [currentUser?.id]);
- 
+
+  // Initialize online users from API data
+  useEffect(() => {
+    if (conversations.length > 0) {
+      const initialOnlineUsers = {};
+      conversations.forEach(conv => {
+        conv.members?.forEach(member => {
+          if (member.user.id !== currentUser?.id) {
+            initialOnlineUsers[member.user.id] = member.user.isOnline || false;
+          }
+        });
+      });
+      setOnlineUsers(initialOnlineUsers);
+    }
+  }, [conversations, currentUser?.id]);
+
+  // Listen for user status updates (online/offline)
+  useEffect(() => {
+    const handleUserStatus = (data) => {
+      setOnlineUsers(prev => ({
+        ...prev,
+        [data.userId]: data.isOnline
+      }));
+    };
+
+    socketService.on('chat:user_status', handleUserStatus);
+
+    return () => {
+      socketService.off('chat:user_status', handleUserStatus);
+    };
+  }, []);
+
+  // Cập nhật thời gian offline theo thời gian thực (mỗi phút)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force re-render để cập nhật thời gian offline
+      setOnlineUsers(prev => ({ ...prev }));
+    }, 60000); // Cập nhật mỗi phút
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex flex-col h-full bg-white text-gray-900">
       {/* Header */}
@@ -98,7 +143,7 @@ const ChatSidebar = ({
           </div>
         ) : (
           <div className="space-y-1">
-            {conversations.map((conv) => {
+            {conversations.map((  conv) => {
               // Lấy thông tin người chat (không phải user hiện tại)
               const otherMember = conv.members?.find(member => 
                 member.user.id !== currentUser?.id
@@ -125,6 +170,10 @@ const ChatSidebar = ({
                       alt={otherMember?.user?.username}
                       className="w-10 h-10 rounded-full object-cover"
                     />
+                    {/* Online status indicator */}
+                    {onlineUsers[otherMember?.user?.id] && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                    )}
                     {unreadCount > 0 && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                         {unreadCount > 9 ? '9' : unreadCount}
@@ -161,6 +210,15 @@ const ChatSidebar = ({
                         </>
                       ) : (
                         "Bắt đầu cuộc trò chuyện"
+                      )}
+                    </p>
+                    
+                    {/* Online/Offline status */}
+                    <p className="text-xs text-gray-400 truncate">
+                      {onlineUsers[otherMember?.user?.id] ? (
+                        <span className="text-green-500">Đang hoạt động</span>
+                      ) : (
+                        <span>{formatOfflineTime(otherMember?.user?.lastSeen)}</span>
                       )}
                     </p>
                   </div>
