@@ -108,28 +108,7 @@ export const chatApi = baseApi.injectEndpoints({
       ]
     }),
     
-    // Đánh dấu tin nhắn đã đọc
-    markMessageAsRead: builder.mutation({
-      query: (messageId) => ({
-        url: `/user/chat/messages/${messageId}/read`,
-        method: 'POST'
-      }),
-      invalidatesTags: (result, error, messageId) => [
-        { type: 'Message', id: messageId }
-      ]
-    }),
     
-    // Đánh dấu cuộc trò chuyện đã đọc
-    markConversationAsRead: builder.mutation({
-      query: (conversationId) => ({
-        url: `/user/chat/conversations/${conversationId}/read`,
-        method: 'POST'
-      }),
-      invalidatesTags: (result, error, conversationId) => [
-        { type: 'Message', id: conversationId },
-        'Conversation'
-      ]
-    }),
 
     // ===== MESSAGE REACTIONS =====
     
@@ -174,14 +153,6 @@ export const chatApi = baseApi.injectEndpoints({
       ]
     }),
 
-    // Đánh dấu cuộc trò chuyện đã đọc
-    markConversationAsRead: builder.mutation({
-      query: (conversationId) => ({
-        url: `/user/chat/conversations/${conversationId}/read`,
-        method: 'POST'
-      }),
-      invalidatesTags: ['Conversation']
-    }),
 
     // ===== MESSAGE EDIT HISTORY =====
     
@@ -212,9 +183,7 @@ export const {
   useGetMessagesQuery,
   useSendMessageMutation,
   useEditMessageMutation,
-  useDeleteMessageMutation,
-  useMarkMessageAsReadMutation,
-  useMarkConversationAsReadMutation
+  useDeleteMessageMutation
 } = chatApi;
 
 // Reaction hooks

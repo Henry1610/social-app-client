@@ -23,9 +23,6 @@ class SocketService {
     this.socket.on('connect', () => {
       this.isConnected = true;
       this.emit('connection:established');
-      
-      // Notify server that user is online
-      this.socket.emit('chat:user_online');
     });
 
     this.socket.on('disconnect', () => {
@@ -49,12 +46,11 @@ class SocketService {
 
     // Chat events
     this.socket.on('chat:new_message', (data) => this.emit('chat:new_message', data));
-    this.socket.on('chat:message_read', (data) => this.emit('chat:message_read', data));
     this.socket.on('chat:user_typing', (data) => this.emit('chat:user_typing', data));
     this.socket.on('chat:user_status', (data) => this.emit('chat:user_status', data));
-    this.socket.on('chat:joined_conversation', (data) => this.emit('chat:joined_conversation', data));
     this.socket.on('chat:unread_count_update', (data) => this.emit('chat:unread_count_update', data));
-    this.socket.on('chat:error', (data) => this.emit('chat:error', data));
+    this.socket.on('chat:conversation_updated', (data) => this.emit('chat:conversation_updated', data));
+    this.socket.on('message:status_update', (data) => this.emit('message:status_update', data));
 
     return this.socket;
   }
@@ -92,11 +88,6 @@ class SocketService {
     }
   }
 
-  markMessageAsRead(messageId) {
-    if (this.socket && this.isConnected) {
-      this.socket.emit('chat:mark_read', { messageId });
-    }
-  }
 
   // Event listener management
   on(event, callback) {

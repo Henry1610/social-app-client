@@ -25,21 +25,24 @@ const ChatSidebar = ({
   // State để track online users
   const [onlineUsers, setOnlineUsers] = useState({});
 
-  // Listen for unread count updates
   useEffect(() => {
     const handleUnreadCountUpdate = (data) => {
-      // Refetch conversations to update unread counts
+      refetch();
+    };
+
+    const handleConversationUpdate = (data) => {
       refetch();
     };
 
     socketService.on('chat:unread_count_update', handleUnreadCountUpdate);
+    socketService.on('chat:conversation_updated', handleConversationUpdate);
 
     return () => {
       socketService.off('chat:unread_count_update', handleUnreadCountUpdate);
+      socketService.off('chat:conversation_updated', handleConversationUpdate);
     };
   }, [refetch]);
 
-  // Listen for typing indicators
   useEffect(() => {
     const handleTyping = (data) => {
       if (data.userId !== currentUser?.id) {
@@ -75,6 +78,7 @@ const ChatSidebar = ({
   // Listen for user status updates (online/offline)
   useEffect(() => {
     const handleUserStatus = (data) => {
+      console.log('Received chat:user_status:', data);
       setOnlineUsers(prev => ({
         ...prev,
         [data.userId]: data.isOnline
@@ -159,9 +163,13 @@ const ChatSidebar = ({
                   className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
                     selectedConversation?.id === conv.id
                       ? "bg-gray-100"
+                      : unreadCount > 0
+                      ? "bg-blue-50 hover:bg-blue-100"
                       : "hover:bg-gray-100"
                   }`}
-                  onClick={() => onSelectConversation(conv)}
+                  onClick={() => {
+                    onSelectConversation(conv);
+                  }}
                 >
                   {/* Avatar */}
                   <div className="relative">
@@ -174,7 +182,7 @@ const ChatSidebar = ({
                     {onlineUsers[otherMember?.user?.id] && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                     )}
-                    {unreadCount > 0 && (
+                    {unreadCount > 0 && selectedConversation?.id !== conv.id && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                         {unreadCount > 9 ? '9' : unreadCount}
                       </div>
@@ -184,7 +192,9 @@ const ChatSidebar = ({
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-gray-900 truncate">
+                      <p className={`font-medium truncate ${
+                        unreadCount > 0 && selectedConversation?.id !== conv.id ? "text-gray-900 font-bold" : "text-gray-900"
+                      }`}>
                         {otherMember?.user?.fullName || otherMember?.user?.username}
                       </p>
                       {lastMessage && (
@@ -203,7 +213,7 @@ const ChatSidebar = ({
                         </span>
                       ) : lastMessage ? (
                         <>
-                          <span className={unreadCount > 0 ? "font-semibold text-gray-900" : ""}>
+                          <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? "font-semibold text-gray-900" : ""}>
                             {lastMessage.senderId === currentUser?.id ? "Bạn: " : ""}
                             {lastMessage.content}
                           </span>
