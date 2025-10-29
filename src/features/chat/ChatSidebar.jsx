@@ -5,6 +5,7 @@ import { useGetConversationsQuery } from "./chatApi";
 import { selectCurrentUser } from "../auth/authSlice";
 import socketService from "../../services/socket";
 import { formatOfflineTime } from "../../utils/formatTimeAgo";
+import CreateGroupModal from "./components/CreateGroupModal";
 
 const ChatSidebar = ({
   selectedConversation,
@@ -24,6 +25,9 @@ const ChatSidebar = ({
   
   // State để track online users
   const [onlineUsers, setOnlineUsers] = useState({});
+  
+  // State cho modal tạo nhóm
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
   useEffect(() => {
     const handleUnreadCountUpdate = (data) => {
@@ -106,7 +110,13 @@ const ChatSidebar = ({
     <div className="flex flex-col h-full bg-white text-gray-900">
       {/* Header */}
       <div className="pt-10 px-4 flex items-center justify-end">
-        <Edit className="w-7 h-7 text-gray-600 cursor-pointer justify-content-end" />
+        <button
+          onClick={() => setShowCreateGroupModal(true)}
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          title="Tạo nhóm chat"
+        >
+          <Edit className="w-7 h-7 text-gray-600" />
+        </button>
       </div>
 
       {/* Search Bar */}
@@ -157,6 +167,35 @@ const ChatSidebar = ({
               // Sử dụng unread count từ backend
               const unreadCount = conv._count?.messages || 0;
               
+              // Xử lý hiển thị tên conversation
+              const getConversationName = () => {
+                if (conv.type === 'GROUP') {
+                  // Nếu có tên nhóm, hiển thị tên nhóm
+                  if (conv.name) {
+                    return conv.name;
+                  }
+                  
+                  // Nếu không có tên nhóm, hiển thị tên các thành viên
+                  const memberNames = conv.members
+                    ?.filter(member => member.user.id !== currentUser?.id)
+                    ?.map(member => member.user.fullName || member.user.username)
+                    ?.slice(0, 3) || []; // Chỉ lấy tối đa 3 người
+                  
+                  if (memberNames.length === 0) {
+                    return 'Nhóm chat';
+                  } else if (memberNames.length <= 2) {
+                    return memberNames.join(', ');
+                  } else {
+                    return `${memberNames.slice(0, 2).join(', ')} và ${memberNames.length - 2} người khác`;
+                  }
+                } else {
+                  // DIRECT conversation
+                  return otherMember?.user?.fullName || otherMember?.user?.username || 'Người dùng';
+                }
+              };
+              
+              const conversationName = getConversationName();
+              
               return (
                 <div
                   key={conv.id}
@@ -173,15 +212,52 @@ const ChatSidebar = ({
                 >
                   {/* Avatar */}
                   <div className="relative">
-                    <img
-                      src={otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                      alt={otherMember?.user?.username}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                    {/* Online status indicator */}
-                    {onlineUsers[otherMember?.user?.id] && (
+                      {conv.type === 'GROUP' ? (
+                        // Group avatar - hiển thị avatar của 3 thành viên thành hình tam giác
+                        <div className="w-12 h-12 relative">
+                          {conv.members
+                            ?.slice(0, 3)
+                            ?.map((member, index) => {
+                              const positions = [
+                                'absolute top-0 left-1/2 transform -translate-x-1/2 z-10', // Avatar 1: trên cùng, giữa
+                                'absolute bottom-0 left-0 z-20', // Avatar 2: dưới trái, đè lên avatar 1
+                                'absolute bottom-0 right-0 z-30'  // Avatar 3: dưới phải, đè lên avatar 1
+                              ];
+                              
+                              return (
+                                <div
+                                  key={member.user.id}
+                                  className={`w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-md ${positions[index]}`}
+                                >
+                                  <img
+                                    src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                                    alt={member.user.username}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              );
+                            })}
+                          {conv.members?.length > 3 && (
+                            <div className="absolute bottom-0 right-0 w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600 border-2 border-white shadow-md z-40">
+                              +
+                            </div>
+                          )}
+                        </div>
+                    ) : (
+                      // Direct chat avatar
+                      <img
+                        src={otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                        alt={otherMember?.user?.username}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    )}
+                    
+                    {/* Online status indicator - chỉ hiển thị cho direct chat */}
+                    {conv.type === 'DIRECT' && onlineUsers[otherMember?.user?.id] && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                     )}
+                    
+                    {/* Unread count */}
                     {unreadCount > 0 && selectedConversation?.id !== conv.id && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                         {unreadCount > 9 ? '9' : unreadCount}
@@ -194,8 +270,8 @@ const ChatSidebar = ({
                     <div className="flex items-center justify-between">
                       <p className={`font-medium truncate ${
                         unreadCount > 0 && selectedConversation?.id !== conv.id ? "text-gray-900 font-bold" : "text-gray-900"
-                      }`}>
-                        {otherMember?.user?.fullName || otherMember?.user?.username}
+                      }`} title={conversationName}>
+                        {conversationName}
                       </p>
                       {lastMessage && (
                         <p className="text-xs text-gray-500">
@@ -213,10 +289,23 @@ const ChatSidebar = ({
                         </span>
                       ) : lastMessage ? (
                         <>
-                          <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? "font-semibold text-gray-900" : ""}>
-                            {lastMessage.senderId === currentUser?.id ? "Bạn: " : ""}
-                            {lastMessage.content}
-                          </span>
+                          {conv.type === 'GROUP' ? (
+                            // Group chat: hiển thị tên người gửi
+                            <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? "font-semibold text-gray-900" : ""}>
+                              {lastMessage.senderId === currentUser?.id ? (
+                                "Bạn: "
+                              ) : (
+                                `${lastMessage.sender?.fullName || lastMessage.sender?.username || 'Người dùng'}: `
+                              )}
+                              {lastMessage.content}
+                            </span>
+                          ) : (
+                            // Direct chat: chỉ hiển thị "Bạn: " nếu là tin nhắn của user hiện tại
+                            <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? "font-semibold text-gray-900" : ""}>
+                              {lastMessage.senderId === currentUser?.id ? "Bạn: " : ""}
+                              {lastMessage.content}
+                            </span>
+                          )}
                         </>
                       ) : (
                         "Bắt đầu cuộc trò chuyện"
@@ -238,6 +327,18 @@ const ChatSidebar = ({
           </div>
         )}
       </div>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        isOpen={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onGroupCreated={(conversation) => {
+          // Chọn conversation mới được tạo
+          onSelectConversation(conversation);
+          // Refresh danh sách conversations
+          refetch();
+        }}
+      />
     </div>
   );
 };

@@ -4,7 +4,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, UserPlus } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useGetPublicProfileQuery } from "../profile/profileApi";
 import {
@@ -21,6 +21,7 @@ import MessageItem from "./components/MessageItem";
 import ReplyPreview from "./components/ReplyPreview";
 import MessageInput from "./components/MessageInput";
 import EditHistoryModal from "./components/EditHistoryModal";
+import AddMemberModal from "./components/AddMemberModal";
 
 const ChatMain = ({ onStartNewMessage }) => {
   const { selectedConversation, setSelectedConversation } = useChat();
@@ -33,6 +34,7 @@ const ChatMain = ({ onStartNewMessage }) => {
   const [editContent, setEditContent] = useState("");
   const [showEditHistory, setShowEditHistory] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messageRefs = useRef({});
@@ -190,12 +192,20 @@ const ChatMain = ({ onStartNewMessage }) => {
       // Có thể thêm toast notification ở đây
     };
 
+    const handleMembersAdded = (data) => {
+      if (data.conversationId === selectedConversation.id) {
+        // Refetch conversation để cập nhật danh sách thành viên
+        chatApi.util.invalidateTags(["Conversation"]);
+      }
+    };
+
     socketService.on("chat:new_message", handleNewMessage);
     socketService.on("chat:message_edited", handleMessageEdited);
     socketService.on("chat:message_recalled", handleMessageRecalled);
     socketService.on("chat:user_typing", handleTyping);
     socketService.on("message:status_update", handleMessageStatusUpdate);
     socketService.on("chat:error", handleChatError);
+    socketService.on("chat:members_added", handleMembersAdded);
 
     return () => {
       socketService.off("chat:new_message", handleNewMessage);
@@ -204,6 +214,7 @@ const ChatMain = ({ onStartNewMessage }) => {
       socketService.off("chat:user_typing", handleTyping);
       socketService.off("message:status_update", handleMessageStatusUpdate);
       socketService.off("chat:error", handleChatError);
+      socketService.off("chat:members_added", handleMembersAdded);
       socketService.leaveConversation(selectedConversation.id);
     };
   }, [selectedConversation?.id, currentUserId, refetch]);
@@ -398,26 +409,72 @@ const ChatMain = ({ onStartNewMessage }) => {
       return <Check className="w-3 h-3 text-gray-400" />;
     }
 
-    // Find the recipient's message state
-    const recipientState = message.states.find(
-      (state) => state.userId !== currentUserId
-    );
-    if (!recipientState) {
-      return <Check className="w-3 h-3 text-gray-400" />;
-    }
-
-    // Get status from MessageState
-    const status = recipientState.status.toLowerCase();
-
-    switch (status) {
-      case "sent":
-        return <Check className="w-3 h-3 text-gray-400" />;
-      case "delivered":
+    // Xử lý khác nhau cho direct chat và group chat
+    if (selectedConversation?.type === 'GROUP') {
+      // Group chat: DELIVERED nếu có ít nhất 1 người đã nhận, READ nếu có người đã xem
+      const deliveredStates = message.states.filter(
+        state => state.userId !== currentUserId && 
+        (state.status.toLowerCase() === 'delivered' || state.status.toLowerCase() === 'read')
+      );
+      
+      const readStates = message.states.filter(
+        state => state.userId !== currentUserId && state.status.toLowerCase() === 'read'
+      );
+      
+      if (readStates.length > 0 && isLastMessageInConversation(message)) {
+        // Có người đã xem tin nhắn mới nhất - hiển thị avatar của người đã xem
+        return (
+          <div className="flex -space-x-1">
+            {readStates.slice(0, 3).map((state, index) => {
+              const member = selectedConversation.members?.find(m => m.user.id === state.userId);
+              return (
+                <div
+                  key={state.userId}
+                  className="w-4 h-4 rounded-full overflow-hidden border border-white shadow-sm"
+                  style={{ zIndex: 10 - index }}
+                >
+                  <img
+                    src={member?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                    alt={member?.user?.username}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              );
+            })}
+            {readStates.length > 3 && (
+              <div className="w-4 h-4 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600 border border-white shadow-sm">
+                +
+              </div>
+            )}
+          </div>
+        );
+      } else if (deliveredStates.length > 0) {
+        // Có người đã nhận nhưng chưa ai xem - DELIVERED
         return <CheckCheck className="w-3 h-3 text-gray-400" />;
-      case "read":
-        return <CheckCheck className="w-3 h-3 text-blue-500" />;
-      default:
+      } else {
+        // Chưa ai nhận - SENT
         return <Check className="w-3 h-3 text-gray-400" />;
+      }
+    } else {
+      // Direct chat: logic cũ
+      const recipientState = message.states.find(
+        (state) => state.userId !== currentUserId
+      );
+      if (!recipientState) {
+        return <Check className="w-3 h-3 text-gray-400" />;
+      }
+
+      const status = recipientState.status.toLowerCase();
+      switch (status) {
+        case "sent":
+          return <Check className="w-3 h-3 text-gray-400" />;
+        case "delivered":
+          return <CheckCheck className="w-3 h-3 text-gray-400" />;
+        case "read":
+          return <CheckCheck className="w-3 h-3 text-blue-500" />;
+        default:
+          return <Check className="w-3 h-3 text-gray-400" />;
+      }
     }
   };
 
@@ -512,29 +569,89 @@ const ChatMain = ({ onStartNewMessage }) => {
       {/* Chat Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          {displayUserInfo?.user?.avatarUrl ? (
-            <img
-              src={displayUserInfo.user.avatarUrl}
-              alt={displayUserInfo?.user?.username || username}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-              <span className="text-sm font-medium text-gray-900">
-                {(displayUserInfo?.user?.username || username)
-                  ?.charAt(0)
-                  ?.toUpperCase()}
-              </span>
+          {selectedConversation?.type === 'GROUP' ? (
+            // Group chat header
+            <div className="w-10 h-10 relative">
+              {selectedConversation.members
+                ?.slice(0, 3)
+                ?.map((member, index) => {
+                  // Vị trí tam giác đè lên nhau
+                  const positions = [
+                    'absolute top-0 left-1/2 transform -translate-x-1/2 z-10', // Avatar 1: trên cùng, giữa
+                    'absolute bottom-0 left-0 z-20', // Avatar 2: dưới trái, đè lên avatar 1
+                    'absolute bottom-0 right-0 z-30'  // Avatar 3: dưới phải, đè lên avatar 1
+                  ];
+                  
+                  return (
+                    <div
+                      key={member.user.id}
+                      className={`w-6 h-6 rounded-full overflow-hidden border-2 border-white shadow-md ${positions[index]}`}
+                    >
+                      <img
+                        src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                        alt={member.user.username}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  );
+                })}
+              {selectedConversation.members?.length > 3 && (
+                <div className="absolute bottom-0 right-0 w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600 border-2 border-white shadow-md z-40">
+                  +
+                </div>
+              )}
             </div>
+          ) : (
+            // Direct chat header
+            displayUserInfo?.user?.avatarUrl ? (
+              <img
+                src={displayUserInfo.user.avatarUrl}
+                alt={displayUserInfo?.user?.username || username}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                <span className="text-sm font-medium text-gray-900">
+                  {(displayUserInfo?.user?.username || username)
+                    ?.charAt(0)
+                    ?.toUpperCase()}
+                </span>
+              </div>
+            )
           )}
-          <div className="space-y-[0.3px]">
+          <div className="flex-1 space-y-[0.3px]">
             <h3 className="font-medium text-gray-900 text-md">
-              {displayUserInfo?.user?.fullName}
+              {selectedConversation?.type === 'GROUP' 
+                ? selectedConversation.name || 
+                  selectedConversation.members
+                    ?.filter(member => member.user.id !== currentUserId)
+                    ?.slice(0, 2)
+                    ?.map(member => member.user.fullName || member.user.username)
+                    ?.join(', ') + 
+                  (selectedConversation.members?.filter(member => member.user.id !== currentUserId)?.length > 2 ? '...' : '')
+                : displayUserInfo?.user?.fullName
+              }
             </h3>
             <p className="text-xs text-gray-600">
-              {displayUserInfo?.user?.username}
+              {selectedConversation?.type === 'GROUP' 
+                ? `${selectedConversation.members?.length || 0} thành viên`
+                : displayUserInfo?.user?.username
+              }
             </p>
           </div>
+          
+          {/* Group chat actions */}
+          {selectedConversation?.type === 'GROUP' && (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowAddMemberModal(true)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                title="Thêm thành viên"
+              >
+                <UserPlus className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -547,20 +664,67 @@ const ChatMain = ({ onStartNewMessage }) => {
               <div className="flex flex-col items-center text-center space-y-4">
                 {/* Avatar */}
                 <div className="relative">
-                  <img
-                    src={displayUserInfo?.user?.avatarUrl}
-                    alt={displayUserInfo?.user?.username || username}
-                    className="w-20 h-20 rounded-full object-cover border-4 border-gray-100"
-                  />
+                  {selectedConversation?.type === 'GROUP' ? (
+                    // Group avatar - hiển thị avatar của 3 thành viên thành hình tam giác
+                    <div className="w-20 h-20 relative">
+                      {selectedConversation.members
+                        ?.slice(0, 3)
+                        ?.map((member, index) => {
+                          // Vị trí tam giác đè lên nhau
+                          const positions = [
+                            'absolute top-0 left-1/2 transform -translate-x-1/2 z-10', // Avatar 1: trên cùng, giữa
+                            'absolute bottom-0 left-0 z-20', // Avatar 2: dưới trái, đè lên avatar 1
+                            'absolute bottom-0 right-0 z-30'  // Avatar 3: dưới phải, đè lên avatar 1
+                          ];
+                          
+                          return (
+                            <div
+                              key={member.user.id}
+                              className={`w-12 h-12 rounded-full overflow-hidden border-4 border-white shadow-lg ${positions[index]}`}
+                            >
+                              <img
+                                src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                                alt={member.user.username}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          );
+                        })}
+                      {selectedConversation.members?.length > 3 && (
+                        <div className="absolute bottom-0 right-0 w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-lg text-gray-600 border-4 border-white shadow-lg z-40">
+                          +
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Direct chat avatar
+                    <img
+                      src={displayUserInfo?.user?.avatarUrl}
+                      alt={displayUserInfo?.user?.username || username}
+                      className="w-20 h-20 rounded-full object-cover border-4 border-gray-100"
+                    />
+                  )}
                 </div>
 
                 {/* User Info */}
                 <div className="space-y-1">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {displayUserInfo?.user?.fullName}
+                    {selectedConversation?.type === 'GROUP' 
+                      ? selectedConversation.name || 
+                        selectedConversation.members
+                          ?.filter(member => member.user.id !== currentUserId)
+                          ?.slice(0, 2)
+                          ?.map(member => member.user.fullName || member.user.username)
+                          ?.join(', ') + 
+                        (selectedConversation.members?.filter(member => member.user.id !== currentUserId)?.length > 2 ? '...' : '')
+                      : displayUserInfo?.user?.fullName
+                    }
                   </h3>
                   <p className="text-sm text-gray-500 flex items-center gap-1">
-                    @{displayUserInfo?.user?.username}
+                    {selectedConversation?.type === 'GROUP' 
+                      ? `${selectedConversation.members?.length || 0} thành viên`
+                      : `@${displayUserInfo?.user?.username}`
+                    }
                     <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
                     Instagram
                   </p>
@@ -569,7 +733,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                 {/* Action Buttons */}
                 <div className="flex">
                   <button className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded-lg text-sm font-medium transition-colors">
-                    Xem trang cá nhân
+                    {selectedConversation?.type === 'GROUP' ? 'Xem thông tin nhóm' : 'Xem trang cá nhân'}
                   </button>
                 </div>
               </div>
@@ -597,6 +761,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                   // Hiển thị danh sách tin nhắn với UI đẹp hơn
                   <div className="space-y-1 pb-4">
                     {messages.map((msg, index) => {
+                      console.log(msg);
                       const isOwnMessage = msg.senderId === currentUserId;
                       const showAvatar =
                         index === 0 ||
@@ -723,6 +888,18 @@ const ChatMain = ({ onStartNewMessage }) => {
         showEditHistory={showEditHistory}
         onClose={() => setShowEditHistory(null)}
         editHistoryData={editHistoryData}
+      />
+
+      {/* Add Member Modal */}
+      <AddMemberModal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        conversationId={selectedConversation?.id}
+        currentMembers={selectedConversation?.members || []}
+        onMemberAdded={(newMembers) => {
+          console.log('Members added:', newMembers);
+          // TODO: Cập nhật danh sách thành viên và refetch conversation
+        }}
       />
     </div>
   );

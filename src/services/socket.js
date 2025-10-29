@@ -52,6 +52,8 @@ class SocketService {
     this.socket.on('chat:user_status', (data) => this.emit('chat:user_status', data));
     this.socket.on('chat:unread_count_update', (data) => this.emit('chat:unread_count_update', data));
     this.socket.on('chat:conversation_updated', (data) => this.emit('chat:conversation_updated', data));
+    this.socket.on('chat:members_added', (data) => this.emit('chat:members_added', data));
+    this.socket.on('chat:error', (data) => this.emit('chat:error', data));
     this.socket.on('message:status_update', (data) => this.emit('message:status_update', data));
 
     return this.socket;
@@ -99,6 +101,12 @@ class SocketService {
   recallMessage(data) {
     if (this.socket && this.isConnected) {
       this.socket.emit('chat:recall_message', data);
+    }
+  }
+
+  addMembers(data) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:add_members', data);
     }
   }
 
