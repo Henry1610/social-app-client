@@ -85,17 +85,6 @@ export const chatApi = baseApi.injectEndpoints({
       ]
     }),
     
-    // Chỉnh sửa tin nhắn
-    editMessage: builder.mutation({
-      query: ({ messageId, content }) => ({
-        url: `/user/chat/messages/${messageId}`,
-        method: 'PUT',
-        body: { content }
-      }),
-      invalidatesTags: (result, error, { messageId }) => [
-        { type: 'Message', id: messageId }
-      ]
-    }),
     
     // Xóa tin nhắn
     deleteMessage: builder.mutation({
@@ -182,7 +171,6 @@ export const {
 export const {
   useGetMessagesQuery,
   useSendMessageMutation,
-  useEditMessageMutation,
   useDeleteMessageMutation
 } = chatApi;
 

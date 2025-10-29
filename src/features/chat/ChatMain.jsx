@@ -4,23 +4,11 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import {
-  Send,
-  Smile,
-  Paperclip,
-  MoreHorizontal,
-  Edit,
-  Forward,
-  Copy,
-  Undo,
-  Check,
-  CheckCheck,
-} from "lucide-react";
+import { Check, CheckCheck } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useGetPublicProfileQuery } from "../profile/profileApi";
 import {
   useGetMessagesQuery,
-  useEditMessageMutation,
   useGetMessageEditHistoryQuery,
   useGetConversationQuery,
   useGetConversationMembersQuery,
@@ -29,6 +17,10 @@ import {
 import { useChat } from "../../contexts/ChatContext";
 import { useSelector } from "react-redux";
 import socketService from "../../services/socket";
+import MessageItem from "./components/MessageItem";
+import ReplyPreview from "./components/ReplyPreview";
+import MessageInput from "./components/MessageInput";
+import EditHistoryModal from "./components/EditHistoryModal";
 
 const ChatMain = ({ onStartNewMessage }) => {
   const { selectedConversation, setSelectedConversation } = useChat();
@@ -40,8 +32,10 @@ const ChatMain = ({ onStartNewMessage }) => {
   const [editingMessage, setEditingMessage] = useState(null);
   const [editContent, setEditContent] = useState("");
   const [showEditHistory, setShowEditHistory] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const messageRefs = useRef({});
 
   // Phân biệt giữa username và conversationId
   const isConversationId = conversationId && !isNaN(conversationId);
@@ -105,7 +99,7 @@ const ChatMain = ({ onStartNewMessage }) => {
     return messagesData?.data?.messages || [];
   }, [messagesData?.data?.messages]);
 
-  const [editMessage, { isLoading: isEditing }] = useEditMessageMutation();
+  const [isEditing, setIsEditing] = useState(false);
 
   const { data: editHistoryData } = useGetMessageEditHistoryQuery(
     showEditHistory,
@@ -174,14 +168,42 @@ const ChatMain = ({ onStartNewMessage }) => {
       }
     };
 
+    const handleMessageEdited = (data) => {
+      if (data.conversationId === selectedConversation.id) {
+        refetch();
+        
+        chatApi.util.invalidateTags([
+          { type: 'MessageEditHistory', id: data.message.id }
+        ]);
+      }
+    };
+
+    const handleMessageRecalled = (data) => {
+      if (data.conversationId === selectedConversation.id) {
+        refetch();
+      }
+      
+    };
+
+    const handleChatError = (data) => {
+      console.error("Chat error:", data.message);
+      // Có thể thêm toast notification ở đây
+    };
+
     socketService.on("chat:new_message", handleNewMessage);
+    socketService.on("chat:message_edited", handleMessageEdited);
+    socketService.on("chat:message_recalled", handleMessageRecalled);
     socketService.on("chat:user_typing", handleTyping);
     socketService.on("message:status_update", handleMessageStatusUpdate);
+    socketService.on("chat:error", handleChatError);
 
     return () => {
       socketService.off("chat:new_message", handleNewMessage);
+      socketService.off("chat:message_edited", handleMessageEdited);
+      socketService.off("chat:message_recalled", handleMessageRecalled);
       socketService.off("chat:user_typing", handleTyping);
       socketService.off("message:status_update", handleMessageStatusUpdate);
+      socketService.off("chat:error", handleChatError);
       socketService.leaveConversation(selectedConversation.id);
     };
   }, [selectedConversation?.id, currentUserId, refetch]);
@@ -191,9 +213,33 @@ const ChatMain = ({ onStartNewMessage }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Scroll to specific message
+  const scrollToMessage = (messageId) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement) {
+      messageElement.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "center" 
+      });
+    }
+  };
+
+  // Handle recall message
+  const handleRecallMessage = async (messageId) => {
+    try {
+      socketService.recallMessage({
+        messageId: messageId,
+        conversationId: selectedConversation.id
+      });
+    } catch (error) {
+      console.error("Error recalling message:", error);
+    }
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
 
   // Handle typing indicator
   const handleTyping = () => {
@@ -220,6 +266,7 @@ const ChatMain = ({ onStartNewMessage }) => {
 
     const messageContent = message.trim();
     setMessage("");
+    setReplyingTo(null); // Clear reply state
 
     try {
       // Gửi tin nhắn qua socket thay vì API
@@ -227,6 +274,7 @@ const ChatMain = ({ onStartNewMessage }) => {
         conversationId: selectedConversation.id,
         content: messageContent,
         type: "TEXT",
+        replyToId: replyingTo?.id || null, // Include reply reference
       });
 
       // Stop typing indicator
@@ -257,6 +305,12 @@ const ChatMain = ({ onStartNewMessage }) => {
       if (message) {
         setEditingMessage(messageId);
         setEditContent(message.content);
+        setShowMessageMenu(null);
+      }
+    } else if (action === "reply") {
+      const message = messages.find((msg) => msg.id === messageId);
+      if (message) {
+        setReplyingTo(message);
         setShowMessageMenu(null);
       }
     } else if (action === "copy") {
@@ -294,25 +348,20 @@ const ChatMain = ({ onStartNewMessage }) => {
   const handleSaveEdit = async () => {
     if (!editingMessage || !editContent.trim()) return;
 
+    setIsEditing(true);
     try {
-      await editMessage({
+      // Sử dụng socket để edit message realtime
+      socketService.editMessage({
         messageId: editingMessage,
         content: editContent.trim(),
-      }).unwrap();
-
-      // Invalidate cache để cập nhật tin nhắn ngay lập tức
-      chatApi.util.invalidateTags(["Message"]);
-      chatApi.util.invalidateTags([
-        { type: "Message", id: selectedConversation?.id },
-      ]);
-
-      // Refetch messages để đảm bảo có data mới nhất
-      refetch();
+      });
 
       setEditingMessage(null);
       setEditContent("");
     } catch (error) {
       console.error("Error editing message:", error);
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -396,8 +445,14 @@ const ChatMain = ({ onStartNewMessage }) => {
     return message.id === lastMessageFromCurrentUser.id;
   };
 
-  // Check if message can be edited (within 10 minutes)
+  // Check if message can be edited (within 10 minutes and is own message)
   const canEditMessage = (message) => {
+    // Chỉ cho phép chỉnh sửa tin nhắn của bản thân
+    if (message.senderId !== currentUserId) {
+      return false;
+    }
+    
+    // Kiểm tra thời gian (trong vòng 10 phút)
     const messageTime = new Date(message.createdAt);
     const now = new Date();
     const diffInMinutes = (now - messageTime) / (1000 * 60);
@@ -546,13 +601,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                       const showAvatar =
                         index === 0 ||
                         messages[index - 1]?.senderId !== msg.senderId;
-                      // const showTime =
-                      //   index === messages.length - 1 ||
-                      //   new Date(msg.createdAt).getTime() -
-                      //     new Date(messages[index + 1]?.createdAt).getTime() >
-                      //     300000; // 5 minutes
 
-                      // Check if we need to show date separator
                       const currentDate = new Date(
                         msg.createdAt
                       ).toDateString();
@@ -566,7 +615,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                         index === 0 || currentDate !== prevDate;
 
                       return (
-                        <div key={msg.id}>
+                        <div key={msg.id} ref={(el) => (messageRefs.current[msg.id] = el)}>
                           {/* Date Separator */}
                           {showDateSeparator && (
                             <div className="flex justify-center my-4">
@@ -585,242 +634,28 @@ const ChatMain = ({ onStartNewMessage }) => {
                             </div>
                           )}
 
-                          <div
-                            className={`flex ${
-                              isOwnMessage
-                                ? "justify-end mr-4"
-                                : "justify-start"
-                            } group relative`}
-                          >
-                            <div
-                              className={`flex max-w-xs lg:max-w-md ${
-                                isOwnMessage ? "flex-row-reverse" : "flex-row"
-                              } items-end space-x-2`}
-                            >
-                              {/* Avatar */}
-                              {!isOwnMessage && showAvatar && (
-                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                                  {msg.sender?.avatarUrl ? (
-                                    <img
-                                      src={msg.sender.avatarUrl}
-                                      alt={msg.sender.fullName}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                                      <span className="text-xs font-medium text-gray-600">
-                                        {msg.sender?.fullName
-                                          ?.charAt(0)
-                                          ?.toUpperCase() ||
-                                          msg.sender?.username
-                                            ?.charAt(0)
-                                            ?.toUpperCase()}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Spacer cho tin nhắn không có avatar */}
-                              {!isOwnMessage && !showAvatar && (
-                                <div className="w-8 h-8"></div>
-                              )}
-
-                              {/* Message bubble */}
-                              <div
-                                className={`relative px-5 py-2 rounded-2xl ${
-                                  isOwnMessage
-                                    ? "bg-primary-btn text-white rounded-br-md"
-                                    : "bg-gray-100 text-gray-900 rounded-bl-md"
-                                } group/message`}
-                              >
-                                {editingMessage === msg.id ? (
-                                  // Edit mode
-                                  <div className="space-y-2">
-                                    <textarea
-                                      value={editContent}
-                                      onChange={(e) =>
-                                        setEditContent(e.target.value)
-                                      }
-                                      onKeyDown={handleEditKeyPress}
-                                      className="w-full bg-transparent text-sm leading-relaxed resize-none focus:outline-none"
-                                      rows={Math.max(
-                                        1,
-                                        editContent.split("\n").length
-                                      )}
-                                      autoFocus
-                                    />
-                                    <div className="flex gap-2 text-xs">
-                                      <button
-                                        onClick={handleSaveEdit}
-                                        disabled={
-                                          isEditing || !editContent.trim()
-                                        }
-                                        className="px-2 py-1 bg-white/20 rounded hover:bg-white/30 disabled:opacity-50"
-                                      >
-                                        Lưu
-                                      </button>
-                                      <button
-                                        onClick={handleCancelEdit}
-                                        className="px-2 py-1 bg-white/20 rounded hover:bg-white/30"
-                                      >
-                                        Hủy
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  // Normal mode
-                                  <p className="text-sm leading-relaxed flex items-center  flex-col">
-                                    {msg.content}
-                                    {msg.updatedAt &&
-                                      msg.updatedAt !== msg.createdAt && (
-                                        <span
-                                          onClick={() =>
-                                            handleShowEditHistory(msg.id)
-                                          }
-                                          className={`text-[11px] italic cursor-pointer hover:underline ${
-                                            isOwnMessage
-                                              ? "text-white/70"
-                                              : "text-gray-400"
-                                          }`}
-                                          title="Đã chỉnh sửa"
-                                        >
-                                          (đã chỉnh sửa)
-                                        </span>
-                                      )}
-                                  </p>
-                                )}
-
-                                {/* Hover menu button */}
-                                <button
-                                  onClick={(e) => {
-                                    handleMessageMenuClick(msg.id, e);
-                                    // Nếu là tin nhắn của người khác, đánh dấu đã đọc
-                                    // if (!isOwnMessage) {
-                                    //   socketService.socket.emit(
-                                    //     "message:seen",
-                                    //     {
-                                    //       conversationId:
-                                    //         selectedConversation.id,
-                                    //       userId: currentUserId,
-                                    //     }
-                                    //   );
-                                    //   chatApi.util.invalidateTags([
-                                    //     "Conversation",
-                                    //   ]);
-                                    // }
-                                  }}
-                                  className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-black/10"
-                                  style={{
-                                    [isOwnMessage ? "left" : "right"]: "-30px",
-                                  }}
-                                >
-                                  <MoreHorizontal className="w-4 h-4 text-gray-500" />
-                                </button>
-
-                                {/* Context Menu */}
-                                {showMessageMenu === msg.id && (
-                                  <div
-                                    className="absolute z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[160px]"
-                                    style={{
-                                      bottom: "100%",
-                                      marginBottom: "8px",
-                                      [isOwnMessage ? "left" : "right"]:
-                                        "-160px",
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {/* Time header */}
-                                    <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-100">
-                                      {new Date(
-                                        msg.createdAt
-                                      ).toLocaleTimeString("vi-VN", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        weekday: "short",
-                                      })}
-                                    </div>
-
-                                    {/* Menu items */}
-                                    {canEditMessage(msg) && (
-                                      <button
-                                        onClick={() =>
-                                          handleMenuAction("edit", msg.id)
-                                        }
-                                        className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
-                                      >
-                                        <Edit className="w-4 h-4 text-gray-600" />
-                                        Chỉnh sửa
-                                      </button>
-                                    )}
-
-                                    <button
-                                      onClick={() =>
-                                        handleMenuAction("forward", msg.id)
-                                      }
-                                      className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
-                                    >
-                                      <Forward className="w-4 h-4 text-gray-600" />
-                                      Chuyển tiếp
-                                    </button>
-
-                                    <button
-                                      onClick={() =>
-                                        handleMenuAction("copy", msg.id)
-                                      }
-                                      className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
-                                    >
-                                      <Copy className="w-4 h-4 text-gray-600" />
-                                      Sao chép
-                                    </button>
-
-                                    {/* Separator */}
-                                    <div className="border-t border-gray-100 my-1"></div>
-
-                                    <button
-                                      onClick={() =>
-                                        handleMenuAction("recall", msg.id)
-                                      }
-                                      className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-3"
-                                    >
-                                      <Undo className="w-4 h-4 text-red-500" />
-                                      Thu hồi
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Edit indicator icon - hiển thị cho cả tin nhắn của người đối phương
-                              {msg.updatedAt && msg.updatedAt !== msg.createdAt && (
-                                <button
-                                  onClick={() => handleShowEditHistory(msg.id)}
-                                  className={`absolute p-1 bg-white border border-gray-200 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-full shadow-sm transition-colors ${
-                                    isOwnMessage ? "-bottom-1 -right-1" : "-bottom-1 right-10"
-                                  }`}
-                                  title="Đã chỉnh sửa"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                </button>
-                              )} */}
-
-                              {/* Message status icon - chỉ hiển thị khi tin nhắn cuối cùng là của mình */}
-                              {isOwnMessage &&
-                                !(
-                                  msg.updatedAt &&
-                                  msg.updatedAt !== msg.createdAt
-                                ) &&
-                                isLastMessageInConversation(msg) && (
-                                  <div className="absolute -bottom-1 -right-1 p-1 bg-white border border-gray-200 rounded-full shadow-sm">
-                                    {getMessageStatusIcon(msg)}
-                                  </div>
-                                )}
-
-                              {/* Spacer for alignment */}
-                              {isOwnMessage && showAvatar && (
-                                <div className="w-8 h-8"></div>
-                              )}
-                            </div>
-                          </div>
+                          <MessageItem
+                            message={msg}
+                            isOwnMessage={isOwnMessage}
+                            showAvatar={showAvatar}
+                            currentUserId={currentUserId}
+                            isLastMessageInConversation={isLastMessageInConversation}
+                            canEditMessage={canEditMessage}
+                            onMenuAction={handleMenuAction}
+                            onShowEditHistory={handleShowEditHistory}
+                            onMessageMenuClick={handleMessageMenuClick}
+                            showMessageMenu={showMessageMenu}
+                            editingMessage={editingMessage}
+                            editContent={editContent}
+                            setEditContent={setEditContent}
+                            onSaveEdit={handleSaveEdit}
+                            onCancelEdit={handleCancelEdit}
+                            onEditKeyPress={handleEditKeyPress}
+                            isEditing={isEditing}
+                            getMessageStatusIcon={getMessageStatusIcon}
+                            onScrollToMessage={scrollToMessage}
+                            onRecallMessage={handleRecallMessage}
+                          />
                         </div>
                       );
                     })}
@@ -866,121 +701,29 @@ const ChatMain = ({ onStartNewMessage }) => {
         </div>
       </div>
 
+      {/* Reply Preview */}
+      <ReplyPreview 
+        replyingTo={replyingTo} 
+        onCancelReply={() => setReplyingTo(null)} 
+      />
+
       {/* Message Input */}
-      <div className="p-4  border-gray-200 bg-white">
-        <div className="flex items-center space-x-2">
-          {/* Attachment button */}
-          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-            <Paperclip className="w-5 h-5 text-gray-600" />
-          </button>
-
-          {/* Message input */}
-          <div className="flex-1 relative border rounded-full">
-            <input
-              type="text"
-              placeholder="Nhập tin nhắn..."
-              value={message}
-              onChange={(e) => {
-                setMessage(e.target.value);
-                handleTyping();
-              }}
+      <MessageInput
+        message={message}
+        setMessage={setMessage}
+        onTyping={handleTyping}
               onKeyPress={handleKeyPress}
-              className="w-full py-2 px-4 pr-12 rounded-full  text-gray-900  focus:outline-none focus:bg-white transition-colors"
-              disabled={!selectedConversation}
-            />
-
-            {/* Emoji button */}
-            <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 transition-colors">
-              <Smile className="w-5 h-5 text-gray-600" />
-            </button>
-          </div>
-
-          {/* Send button */}
-          <button
-            onClick={handleSendMessage}
-            className={`p-2 rounded-full text-white transition-colors ${
-              message.trim() && selectedConversation
-                ? "bg-primary-btn hover:bg-primary-btn-hover"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
-            disabled={!message.trim() || !selectedConversation}
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+        onSendMessage={handleSendMessage}
+        replyingTo={replyingTo}
+        selectedConversation={selectedConversation}
+      />
 
       {/* Edit History Modal */}
-      {showEditHistory && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Lịch sử chỉnh sửa
-                </h3>
-                <button
-                  onClick={() => setShowEditHistory(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 overflow-y-auto max-h-[60vh]">
-              {editHistoryData?.data?.editHistory ? (
-                <div className="space-y-3">
-                  {editHistoryData.data.editHistory.map((edit, index) => (
-                    <div
-                      key={edit.id}
-                      className="border border-gray-200 rounded-lg p-3"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={
-                              edit.editor.avatarUrl ||
-                              "/images/avatar-IG-mac-dinh-1.jpg"
-                            }
-                            alt={edit.editor.fullName}
-                            className="w-6 h-6 rounded-full object-cover"
-                          />
-                          <span className="text-sm text-gray-600">
-                            {edit.editor.fullName}
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-400">
-                          {new Date(edit.editedAt).toLocaleString("vi-VN")}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div>
-                          <span className="text-xs text-gray-500">Từ:</span>
-                          <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                            {edit.oldContent}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-500">Thành:</span>
-                          <p className="text-sm text-gray-900 bg-blue-50 p-2 rounded">
-                            {edit.newContent}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <p>Không có lịch sử chỉnh sửa</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <EditHistoryModal
+        showEditHistory={showEditHistory}
+        onClose={() => setShowEditHistory(null)}
+        editHistoryData={editHistoryData}
+      />
     </div>
   );
 };

@@ -46,6 +46,8 @@ class SocketService {
 
     // Chat events
     this.socket.on('chat:new_message', (data) => this.emit('chat:new_message', data));
+    this.socket.on('chat:message_edited', (data) => this.emit('chat:message_edited', data));
+    this.socket.on('chat:message_recalled', (data) => this.emit('chat:message_recalled', data));
     this.socket.on('chat:user_typing', (data) => this.emit('chat:user_typing', data));
     this.socket.on('chat:user_status', (data) => this.emit('chat:user_status', data));
     this.socket.on('chat:unread_count_update', (data) => this.emit('chat:unread_count_update', data));
@@ -88,6 +90,18 @@ class SocketService {
     }
   }
 
+  editMessage(data) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:edit_message', data);
+    }
+  }
+
+  recallMessage(data) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:recall_message', data);
+    }
+  }
+
 
   // Event listener management
   on(event, callback) {
@@ -120,4 +134,5 @@ class SocketService {
   }
 }
 
-export default new SocketService();
+const socketService = new SocketService();
+export default socketService;
