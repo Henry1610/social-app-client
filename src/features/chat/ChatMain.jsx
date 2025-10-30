@@ -4,8 +4,8 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { Check, CheckCheck, UserPlus } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { Check, CheckCheck, UserPlus, LogOut, X, Trash } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useGetPublicProfileQuery } from "../profile/profileApi";
 import {
   useGetMessagesQuery,
@@ -13,19 +13,23 @@ import {
   useGetConversationQuery,
   useGetConversationMembersQuery,
   chatApi,
+    useUploadChatMediaMutation,
 } from "./chatApi";
 import { useChat } from "../../contexts/ChatContext";
 import { useSelector } from "react-redux";
 import socketService from "../../services/socket";
+import { toast } from "sonner";
 import MessageItem from "./components/MessageItem";
 import ReplyPreview from "./components/ReplyPreview";
 import MessageInput from "./components/MessageInput";
 import EditHistoryModal from "./components/EditHistoryModal";
 import AddMemberModal from "./components/AddMemberModal";
+import confirmToast from "../../components/common/confirmToast";
 
 const ChatMain = ({ onStartNewMessage }) => {
   const { selectedConversation, setSelectedConversation } = useChat();
   const { username, conversationId } = useParams();
+  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [, setIsTyping] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
@@ -35,9 +39,12 @@ const ChatMain = ({ onStartNewMessage }) => {
   const [showEditHistory, setShowEditHistory] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState([]);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messageRefs = useRef({});
+  const [didInitialScroll, setDidInitialScroll] = useState(false);
 
   // Phân biệt giữa username và conversationId
   const isConversationId = conversationId && !isNaN(conversationId);
@@ -49,11 +56,11 @@ const ChatMain = ({ onStartNewMessage }) => {
   });
 
   // Load conversation nếu có conversationId
-  const { data: conversationData, isLoading: isLoadingConversation } =
+  const { data: conversationData, isLoading: isLoadingConversation, refetch: refetchConversation } =
     useGetConversationQuery(conversationId, { skip: !isConversationId });
 
   // Load conversation members nếu có conversationId
-  const { data: membersData, isLoading: isLoadingMembers } =
+  const { data: membersData, isLoading: isLoadingMembers, refetch: refetchMembers } =
     useGetConversationMembersQuery(conversationId, { skip: !isConversationId });
 
   // Lấy current user từ Redux store
@@ -102,6 +109,7 @@ const ChatMain = ({ onStartNewMessage }) => {
   }, [messagesData?.data?.messages]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadChatMedia] = useUploadChatMediaMutation();
 
   const { data: editHistoryData } = useGetMessageEditHistoryQuery(
     showEditHistory,
@@ -121,6 +129,27 @@ const ChatMain = ({ onStartNewMessage }) => {
       chatApi.util.invalidateTags(["Conversation"]);
     }
   }, [selectedConversation?.id, currentUserId]);
+
+
+  // Hàm xử lý rời nhóm
+  const handleLeaveGroup = async () => {
+    if (!selectedConversation?.id) return;
+
+    const confirmed = await confirmToast("Bạn có chắc chắn muốn rời nhóm này không?");
+    if (!confirmed) return;
+
+    try {
+      socketService.leaveGroup({
+        conversationId: selectedConversation.id
+      });
+      chatApi.util.invalidateTags(["Conversation"]);
+      setSelectedConversation(null);
+      navigate('/chat');
+      
+    } catch (error) {
+      console.error('Error leaving group:', error);
+    }
+  };
 
   // Socket event handlers
   useEffect(() => {
@@ -188,14 +217,24 @@ const ChatMain = ({ onStartNewMessage }) => {
     };
 
     const handleChatError = (data) => {
-      console.error("Chat error:", data.message);
-      // Có thể thêm toast notification ở đây
+      toast.error(data.message || "Có lỗi xảy ra");
     };
 
-    const handleMembersAdded = (data) => {
-      if (data.conversationId === selectedConversation.id) {
-        // Refetch conversation để cập nhật danh sách thành viên
-        chatApi.util.invalidateTags(["Conversation"]);
+    const handleChatWarning = (data) => {
+      toast.warning(data.message || "Cảnh báo");
+    };
+
+    const handleConversationUpdate = (data) => {
+      // Nếu conversation hiện tại bị xóa, chuyển về trang mặc định
+      if (data.action === 'delete' && data.conversationId === selectedConversation?.id) {
+        setSelectedConversation(null);
+        navigate('/chat');
+      }
+      
+      // Nếu có cập nhật và là conversation hiện tại, refetch data
+      if (data.action === 'update' && data.conversationId === selectedConversation?.id) {
+        refetchConversation();
+        refetchMembers();
       }
     };
 
@@ -205,7 +244,8 @@ const ChatMain = ({ onStartNewMessage }) => {
     socketService.on("chat:user_typing", handleTyping);
     socketService.on("message:status_update", handleMessageStatusUpdate);
     socketService.on("chat:error", handleChatError);
-    socketService.on("chat:members_added", handleMembersAdded);
+    socketService.on("chat:warning", handleChatWarning);
+    socketService.on("chat:conversation_updated", handleConversationUpdate);
 
     return () => {
       socketService.off("chat:new_message", handleNewMessage);
@@ -214,14 +254,15 @@ const ChatMain = ({ onStartNewMessage }) => {
       socketService.off("chat:user_typing", handleTyping);
       socketService.off("message:status_update", handleMessageStatusUpdate);
       socketService.off("chat:error", handleChatError);
-      socketService.off("chat:members_added", handleMembersAdded);
+      socketService.off("chat:warning", handleChatWarning);
+      socketService.off("chat:conversation_updated", handleConversationUpdate);
       socketService.leaveConversation(selectedConversation.id);
     };
-  }, [selectedConversation?.id, currentUserId, refetch]);
+  }, [selectedConversation?.id, currentUserId, refetch, refetchConversation, refetchMembers]);
 
   // Auto scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   // Scroll to specific message
@@ -251,6 +292,21 @@ const ChatMain = ({ onStartNewMessage }) => {
     scrollToBottom();
   }, [messages]);
 
+  // Ensure initial scroll after messages fetched (e.g., reload)
+  useEffect(() => {
+    if (!isLoadingMessages && messages?.length > 0 && !didInitialScroll) {
+      setTimeout(() => {
+        scrollToBottom("auto");
+        setDidInitialScroll(true);
+      }, 0);
+    }
+  }, [isLoadingMessages, messages, didInitialScroll]);
+
+  // Reset initial scroll flag when switching conversations
+  useEffect(() => {
+    setDidInitialScroll(false);
+  }, [selectedConversation?.id]);
+
 
   // Handle typing indicator
   const handleTyping = () => {
@@ -273,27 +329,45 @@ const ChatMain = ({ onStartNewMessage }) => {
 
   // Handle send message
   const handleSendMessage = async () => {
-    if (!message.trim() || !selectedConversation?.id) return;
+    if ((!message.trim() && selectedMedia.length === 0) || !selectedConversation?.id) return;
 
     const messageContent = message.trim();
+    const mediaToSend = selectedMedia;
+    
     setMessage("");
-    setReplyingTo(null); // Clear reply state
+    setSelectedMedia([]);
+    setReplyingTo(null);
 
     try {
-      // Gửi tin nhắn qua socket thay vì API
-      socketService.socket.emit("chat:send_message", {
-        conversationId: selectedConversation.id,
-        content: messageContent,
-        type: "TEXT",
-        replyToId: replyingTo?.id || null, // Include reply reference
-      });
+      if (mediaToSend.length > 0) {
+        const files = mediaToSend.map(m => m.file)
+        const res = await uploadChatMedia({ conversationId: selectedConversation.id, files }).unwrap()
+        const uploaded = res?.data?.files || []
+        uploaded.forEach((u, idx) => {
+          socketService.socket.emit("chat:send_message", {
+            conversationId: selectedConversation.id,
+            content: idx === 0 ? messageContent : null,
+            type: u.type,
+            mediaUrl: u.url,
+            mediaType: u.mediaType,
+            replyToId: null,
+          });
+        })
+      } else {
+        socketService.socket.emit("chat:send_message", {
+          conversationId: selectedConversation.id,
+          content: messageContent,
+          type: "TEXT",
+          replyToId: replyingTo?.id || null,
+        });
+      }
 
-      // Stop typing indicator
       setIsTyping(false);
       socketService.setTyping(selectedConversation.id, false);
     } catch (error) {
       console.error("Error sending message:", error);
       setMessage(messageContent);
+      setSelectedMedia(mediaToSend);
     }
   };
 
@@ -516,6 +590,36 @@ const ChatMain = ({ onStartNewMessage }) => {
     return diffInMinutes <= 10;
   };
 
+  const isGroupAdmin = selectedConversation?.type === 'GROUP' && selectedConversation?.members?.find(m => m.user.id === currentUserId)?.role === 'ADMIN';
+
+  const handleRemoveMember = async (memberId) => {
+    if (!selectedConversation?.id) return;
+
+    const member = selectedConversation.members.find(m => m.user.id === memberId);
+    const memberName = member?.user?.fullName || member?.user?.username;
+    
+    const confirmed = await confirmToast(
+      `Bạn có chắc chắn muốn xóa ${memberName} khỏi nhóm này không?`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      socketService.removeMember({
+        conversationId: selectedConversation.id,
+        userId: memberId
+      });
+      
+      if (memberId === currentUserId) {
+        setSelectedConversation(null);
+        navigate('/chat');
+      }
+      
+    } catch (error) {
+      console.error('Error removing member:', error);
+    }
+  };
+
   // Hiển thị loading state
   if (displayIsLoading) {
     return (
@@ -570,55 +674,50 @@ const ChatMain = ({ onStartNewMessage }) => {
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center space-x-3">
           {selectedConversation?.type === 'GROUP' ? (
-            // Group chat header
-            <div className="w-10 h-10 relative">
-              {selectedConversation.members
-                ?.slice(0, 3)
-                ?.map((member, index) => {
-                  // Vị trí tam giác đè lên nhau
-                  const positions = [
-                    'absolute top-0 left-1/2 transform -translate-x-1/2 z-10', // Avatar 1: trên cùng, giữa
-                    'absolute bottom-0 left-0 z-20', // Avatar 2: dưới trái, đè lên avatar 1
-                    'absolute bottom-0 right-0 z-30'  // Avatar 3: dưới phải, đè lên avatar 1
-                  ];
-                  
-                  return (
-                    <div
-                      key={member.user.id}
-                      className={`w-6 h-6 rounded-full overflow-hidden border-2 border-white shadow-md ${positions[index]}`}
-                    >
-                      <img
-                        src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                        alt={member.user.username}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  );
-                })}
+            <button 
+              type="button" 
+              onClick={() => setShowMembersModal(true)} 
+              className="w-10 h-10 relative focus:outline-none"
+            >
+              {selectedConversation.members?.slice(0, 3)?.map((member, index) => {
+                const positions = [
+                  'absolute top-0 left-1/2 transform -translate-x-1/2 z-10',
+                  'absolute bottom-0 left-0 z-20',
+                  'absolute bottom-0 right-0 z-30'
+                ];
+                return (
+                  <div
+                    key={member.user.id}
+                    className={`w-6 h-6 rounded-full overflow-hidden border-2 border-white shadow-md ${positions[index]}`}
+                  >
+                    <img
+                      src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                      alt={member.user.username}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                );
+              })}
               {selectedConversation.members?.length > 3 && (
                 <div className="absolute bottom-0 right-0 w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600 border-2 border-white shadow-md z-40">
                   +
                 </div>
               )}
-            </div>
-          ) : (
-            // Direct chat header
-            displayUserInfo?.user?.avatarUrl ? (
-              <img
-                src={displayUserInfo.user.avatarUrl}
-                alt={displayUserInfo?.user?.username || username}
-                className="w-10 h-10 rounded-full object-cover"
-              />
+            </button>
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
-                <span className="text-sm font-medium text-gray-900">
-                  {(displayUserInfo?.user?.username || username)
-                    ?.charAt(0)
-                    ?.toUpperCase()}
-                </span>
-              </div>
-            )
-          )}
+              <button
+                type="button"
+                onClick={() => navigate(`/${displayUserInfo?.user?.username || username}`)}
+                className="w-10 h-10 rounded-full overflow-hidden ring-0 hover:ring-2 hover:ring-gray-200 transition"
+                title={displayUserInfo?.user?.username || username}
+              >
+                <img
+                  src={displayUserInfo?.user?.avatarUrl}
+                  alt={displayUserInfo?.user?.username || username}
+                  className="w-10 h-10 object-cover"
+                />
+              </button>
+            )}
           <div className="flex-1 space-y-[0.3px]">
             <h3 className="font-medium text-gray-900 text-md">
               {selectedConversation?.type === 'GROUP' 
@@ -642,13 +741,20 @@ const ChatMain = ({ onStartNewMessage }) => {
           
           {/* Group chat actions */}
           {selectedConversation?.type === 'GROUP' && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <button
                 onClick={() => setShowAddMemberModal(true)}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 title="Thêm thành viên"
               >
                 <UserPlus className="w-5 h-5 text-gray-600" />
+              </button>
+              <button
+                onClick={handleLeaveGroup}
+                className="p-2 hover:bg-red-50 rounded-full transition-colors"
+                title="Rời nhóm"
+              >
+                <LogOut className="w-5 h-5 text-red-600" />
               </button>
             </div>
           )}
@@ -761,7 +867,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                   // Hiển thị danh sách tin nhắn với UI đẹp hơn
                   <div className="space-y-1 pb-4">
                     {messages.map((msg, index) => {
-                      console.log(msg);
+                      
                       const isOwnMessage = msg.senderId === currentUserId;
                       const showAvatar =
                         index === 0 ||
@@ -799,7 +905,15 @@ const ChatMain = ({ onStartNewMessage }) => {
                             </div>
                           )}
 
-                          <MessageItem
+                          {/* System Message */}
+                          {msg.isSystem ? (
+                            <div className="flex justify-center my-2">
+                              <div className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                                {msg.content}
+                              </div>
+                            </div>
+                          ) : (
+                            <MessageItem
                             message={msg}
                             isOwnMessage={isOwnMessage}
                             showAvatar={showAvatar}
@@ -821,6 +935,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                             onScrollToMessage={scrollToMessage}
                             onRecallMessage={handleRecallMessage}
                           />
+                          )}
                         </div>
                       );
                     })}
@@ -877,11 +992,14 @@ const ChatMain = ({ onStartNewMessage }) => {
         message={message}
         setMessage={setMessage}
         onTyping={handleTyping}
-              onKeyPress={handleKeyPress}
+        onKeyPress={handleKeyPress}
         onSendMessage={handleSendMessage}
         replyingTo={replyingTo}
         selectedConversation={selectedConversation}
+        selectedMedia={selectedMedia}
+        onMediaSelect={setSelectedMedia}
       />
+
 
       {/* Edit History Modal */}
       <EditHistoryModal
@@ -897,10 +1015,50 @@ const ChatMain = ({ onStartNewMessage }) => {
         conversationId={selectedConversation?.id}
         currentMembers={selectedConversation?.members || []}
         onMemberAdded={(newMembers) => {
-          console.log('Members added:', newMembers);
+          
           // TODO: Cập nhật danh sách thành viên và refetch conversation
         }}
       />
+
+      {showMembersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-md mx-auto p-5 relative shadow-lg flex flex-col">
+            <button 
+              className="absolute top-2 right-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700"
+              onClick={() => setShowMembersModal(false)}
+              title="Đóng"
+              tabIndex={0}
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-lg font-semibold mb-4 text-center">Danh sách thành viên</h2>
+            <div className="space-y-2 max-h-96 overflow-y-auto p-2">
+              {selectedConversation?.members?.map(m => (
+                <div key={m.user.id} className="flex items-center gap-3 border-b last:border-none pb-2">
+                  <img src={m.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"} className="w-10 h-10 rounded-full object-cover" alt={m.user.username} />
+                  <div>
+                    <div className="font-medium text-gray-900">{m.user.fullName || m.user.username}</div>
+                    <div className="text-xs text-gray-500">@{m.user.username}</div>
+                  </div>
+                  {selectedConversation.type === 'GROUP' && m.role && (
+                    <div className="ml-auto px-2 py-0.5 rounded bg-gray-100 text-xs text-gray-700 uppercase">{m.role}</div>
+                  )}
+                  {isGroupAdmin && m.user.id !== currentUserId && (
+                    <button
+                      onClick={() => handleRemoveMember(m.user.id)}
+                      className="ml-2 p-1 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+                      title="Xoá thành viên"
+                      tabIndex={0}
+                    >
+                      <Trash size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

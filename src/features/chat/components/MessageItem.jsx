@@ -104,10 +104,14 @@ const MessageItem = ({
 
           {/* Message bubble */}
           <div
-            className={`relative px-5 py-2 rounded-2xl ${
-              isOwnMessage
-                ? "bg-primary-btn text-white rounded-br-md"
-                : "bg-gray-100 text-gray-900 rounded-bl-md"
+            className={`relative ${
+              message.mediaUrl && !message.content ? "p-0 bg-transparent" : "px-5 py-2"
+            } rounded-2xl ${
+              message.mediaUrl && !message.content
+                ? ""
+                : isOwnMessage
+                  ? "bg-primary-btn text-white rounded-br-md"
+                  : "bg-gray-100 text-gray-900 rounded-bl-md"
             } group/message`}
           >
             {editingMessage === message.id ? (
@@ -139,7 +143,7 @@ const MessageItem = ({
               </div>
             ) : (
               // Normal mode
-              <p className="text-sm leading-relaxed flex items-center flex-col">
+              <div className="text-sm leading-relaxed flex items-center flex-col space-y-2">
                 {message.isRecalled ? (
                   <span className={`text-[13px] italic ${
                     isOwnMessage
@@ -150,23 +154,44 @@ const MessageItem = ({
                   </span>
                 ) : (
                   <>
-                    {message.content}
-                    {message.updatedAt && message.updatedAt !== message.createdAt && (
-                      <span
-                        onClick={() => onShowEditHistory(message.id)}
-                        className={`text-[11px] italic cursor-pointer hover:underline ${
-                          isOwnMessage
-                            ? "text-white/70"
-                            : "text-gray-400"
-                        }`}
-                        title="Đã chỉnh sửa"
-                      >
-                        (đã chỉnh sửa)
-                      </span>
+                    {message.mediaUrl && (
+                      <div className="w-full">
+                        {message.type === 'IMAGE' ? (
+                          <img 
+                            src={message.mediaUrl} 
+                            alt="Media" 
+                            className="w-auto h-auto max-w-xs max-h-64 rounded-lg object-contain"
+                          />
+                        ) : message.type === 'VIDEO' ? (
+                          <video 
+                            src={message.mediaUrl} 
+                            controls
+                            className="w-auto h-auto max-w-xs max-h-64 rounded-lg object-contain"
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                    {message.content && (
+                      <p>
+                        {message.content}
+                        {message.updatedAt && message.updatedAt !== message.createdAt && (
+                          <span
+                            onClick={() => onShowEditHistory(message.id)}
+                            className={`text-[11px] italic cursor-pointer hover:underline ${
+                              isOwnMessage
+                                ? "text-white/70"
+                                : "text-gray-400"
+                            }`}
+                            title="Đã chỉnh sửa"
+                          >
+                            (đã chỉnh sửa)
+                          </span>
+                        )}
+                      </p>
                     )}
                   </>
                 )}
-              </p>
+              </div>
             )}
 
             {/* Hover menu button */}

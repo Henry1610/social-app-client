@@ -151,6 +151,20 @@ export const chatApi = baseApi.injectEndpoints({
       providesTags: (result, error, messageId) => [
         { type: 'MessageEditHistory', id: messageId }
       ]
+    }),
+
+    // Upload media for chat
+    uploadChatMedia: builder.mutation({
+      query: ({ conversationId, files }) => {
+        const formData = new FormData()
+        formData.append('conversationId', conversationId)
+        files.forEach(f => formData.append('files', f))
+        return {
+          url: `/user/chat/uploads`,
+          method: 'POST',
+          body: formData
+        }
+      }
     })
   })
 });
@@ -189,4 +203,8 @@ export const {
 // Edit history hooks
 export const {
   useGetMessageEditHistoryQuery
+} = chatApi;
+
+export const {
+  useUploadChatMediaMutation
 } = chatApi;

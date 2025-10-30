@@ -523,7 +523,7 @@ export default function Profile() {
                 ) : followersData?.followers?.length > 0 ? (
                   <div>
                     {followersData.followers.map((user) => 
-                  {console.log(user);
+                  {
                   return (
                       <ModalUserItem
                         key={user.id}
@@ -559,7 +559,7 @@ export default function Profile() {
                   <div>
                     {followingsData.followings.map((user) => 
                     
-                    {console.log(user);
+                    {
                     return (
                       <ModalUserItem
                         key={user.id}

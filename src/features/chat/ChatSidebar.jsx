@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Search, Edit } from "lucide-react";
+import { Search, Edit, X } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useGetConversationsQuery } from "./chatApi";
 import { selectCurrentUser } from "../auth/authSlice";
@@ -18,7 +18,27 @@ const ChatSidebar = ({
   
   // Lấy danh sách conversations từ API
   const { data: conversationsData, isLoading, refetch } = useGetConversationsQuery();
-  const conversations = useMemo(() => conversationsData?.data?.conversations || [], [conversationsData?.data?.conversations]);
+  const allConversations = useMemo(() => conversationsData?.data?.conversations || [], [conversationsData?.data?.conversations]);
+  
+  const conversations = useMemo(() => {
+    if (!searchQuery?.trim()) {
+      return allConversations;
+    }
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    return allConversations.filter(conv => {
+      const conversationName = conv.type === 'GROUP' 
+        ? (conv.name || conv.members
+            ?.filter(member => member.user.id !== currentUser?.id)
+            ?.map(member => member.user.fullName || member.user.username)
+            ?.join(' ') || '')
+        : (conv.members?.find(member => member.user.id !== currentUser?.id)?.user?.fullName || 
+           conv.members?.find(member => member.user.id !== currentUser?.id)?.user?.username || '');
+      
+      return conversationName.toLowerCase().includes(query);
+    });
+  }, [allConversations, searchQuery, currentUser?.id]);
 
   // State để track typing users theo conversation
   const [typingUsers, setTypingUsers] = useState({});
@@ -82,7 +102,7 @@ const ChatSidebar = ({
   // Listen for user status updates (online/offline)
   useEffect(() => {
     const handleUserStatus = (data) => {
-      console.log('Received chat:user_status:', data);
+      
       setOnlineUsers(prev => ({
         ...prev,
         [data.userId]: data.isOnline
@@ -128,8 +148,17 @@ const ChatSidebar = ({
             placeholder="Tìm kiếm"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full py-2 pl-10 pr-4 rounded-full bg-gray-100 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full py-2 pl-10 rounded-full bg-gray-100 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Xóa"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
         <div className="font-bold text-xl pt-4 px-2">Tin nhắn</div>
       </div>
@@ -219,9 +248,9 @@ const ChatSidebar = ({
                             ?.slice(0, 3)
                             ?.map((member, index) => {
                               const positions = [
-                                'absolute top-0 left-1/2 transform -translate-x-1/2 z-10', // Avatar 1: trên cùng, giữa
-                                'absolute bottom-0 left-0 z-20', // Avatar 2: dưới trái, đè lên avatar 1
-                                'absolute bottom-0 right-0 z-30'  // Avatar 3: dưới phải, đè lên avatar 1
+                                'absolute top-0 left-1/2 transform -translate-x-1/2 z-1', // Avatar 1: trên cùng, giữa
+                                'absolute bottom-0 left-0 z-10', // Avatar 2: dưới trái, đè lên avatar 1
+                                'absolute bottom-0 right-0 z-20'  // Avatar 3: dưới phải, đè lên avatar 1
                               ];
                               
                               return (
@@ -237,11 +266,7 @@ const ChatSidebar = ({
                                 </div>
                               );
                             })}
-                          {conv.members?.length > 3 && (
-                            <div className="absolute bottom-0 right-0 w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600 border-2 border-white shadow-md z-40">
-                              +
-                            </div>
-                          )}
+                          
                         </div>
                     ) : (
                       // Direct chat avatar
@@ -284,42 +309,44 @@ const ChatSidebar = ({
                     </div>
                     <p className="text-sm text-gray-500 truncate">
                       {typingUsers[conv.id]?.length > 0 ? (
-                        <span className=" text-gray-500">
-                          đang nhập...
-                        </span>
+                        <span className=" text-gray-500">đang nhập...</span>
                       ) : lastMessage ? (
-                        <>
-                          {conv.type === 'GROUP' ? (
-                            // Group chat: hiển thị tên người gửi
-                            <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? "font-semibold text-gray-900" : ""}>
-                              {lastMessage.senderId === currentUser?.id ? (
-                                "Bạn: "
-                              ) : (
-                                `${lastMessage.sender?.fullName || lastMessage.sender?.username || 'Người dùng'}: `
-                              )}
-                              {lastMessage.content}
+                        (() => {
+                          const isOwn = lastMessage.senderId === currentUser?.id
+                          const isGroup = conv.type === 'GROUP'
+                          const prefix = lastMessage.isSystem
+                            ? ''
+                            : isOwn
+                              ? 'Bạn: '
+                              : isGroup
+                                ? `${lastMessage.sender?.fullName || lastMessage.sender?.username || 'Hệ thống'}: `
+                                : ''
+                          let body = ''
+                          if (lastMessage.isRecalled) body = 'Tin nhắn đã thu hồi'
+                          else if (lastMessage.type === 'IMAGE') body = 'đã gửi một ảnh'
+                          else if (lastMessage.type === 'VIDEO') body = 'đã gửi một video'
+                          else body = lastMessage.content || ''
+                          return (
+                            <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? 'font-semibold text-gray-900' : ''}>
+                              {prefix}{body}
                             </span>
-                          ) : (
-                            // Direct chat: chỉ hiển thị "Bạn: " nếu là tin nhắn của user hiện tại
-                            <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? "font-semibold text-gray-900" : ""}>
-                              {lastMessage.senderId === currentUser?.id ? "Bạn: " : ""}
-                              {lastMessage.content}
-                            </span>
-                          )}
-                        </>
+                          )
+                        })()
                       ) : (
-                        "Bắt đầu cuộc trò chuyện"
+                        'Bắt đầu cuộc trò chuyện'
                       )}
                     </p>
                     
-                    {/* Online/Offline status */}
-                    <p className="text-xs text-gray-400 truncate">
-                      {onlineUsers[otherMember?.user?.id] ? (
-                        <span className="text-green-500">Đang hoạt động</span>
-                      ) : (
-                        <span>{formatOfflineTime(otherMember?.user?.lastSeen)}</span>
-                      )}
-                    </p>
+                    {/* Online/Offline status - chỉ hiển thị cho DIRECT chat */}
+                    {conv.type === 'DIRECT' && (
+                      <p className="text-xs text-gray-400 truncate">
+                        {onlineUsers[otherMember?.user?.id] ? (
+                          <span className="text-green-500">Đang hoạt động</span>
+                        ) : (
+                          <span>{formatOfflineTime(otherMember?.user?.lastSeen)}</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               );

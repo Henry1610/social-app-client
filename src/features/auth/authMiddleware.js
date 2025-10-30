@@ -51,14 +51,14 @@ const scheduleTokenRefresh = (store, token) => {
 
   // Nếu token sắp hết hạn (< 1 phút) hoặc đã hết, refresh ngay
   if (expiresIn <= refreshThreshold) {
-    console.log(' Token sắp hết hạn, refresh ngay...');
+    
     refreshAccessToken(store);
   } else {
     // Schedule refresh vào lúc: (expiresIn - refreshThreshold) giây
     const delayMs = (expiresIn - refreshThreshold) * 1000;
 
     refreshTimeout = setTimeout(() => {
-      console.log(' Proactive token refresh...');
+      
       refreshAccessToken(store);
     }, delayMs);
   }
@@ -80,12 +80,12 @@ const refreshAccessToken = async (store) => {
 
     // Update token
     store.dispatch(updateAccessToken(newAccessToken));
-    console.log('✅ Token refreshed successfully');
+    
 
     // Schedule next refresh
     scheduleTokenRefresh(store, newAccessToken);
   } catch (error) {
-    console.error('❌ Token refresh failed:', error);
+    console.error(' Token refresh failed:', error);
     store.dispatch(logout());
   }
 };

@@ -23,11 +23,10 @@ const FollowButton = ({
 
   // Xử lý khi nhấn nút nhắn tin
   const handleStartChat = async () => {
-    console.log('handleStartChat called');
-    console.log('viewingUsername:', viewingUsername);
+    
     
     if (!viewingUsername) {
-      console.log('Missing viewingUsername');
+      
       toast.error("Không thể lấy thông tin người dùng");
       return;
     }
@@ -44,7 +43,7 @@ const FollowButton = ({
       // Dẫn đến trang chat với conversation ID
       const conversationId = result.data?.conversation?.id;
       if (conversationId) {
-        console.log('Navigating to:', `/chat/${conversationId}`);
+        
         navigate(`/chat/${conversationId}`);
       } else {
         console.error('Không có conversation ID trong response');

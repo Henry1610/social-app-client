@@ -27,7 +27,8 @@ const AddMemberModal = ({
   const filteredResults = searchResults?.users?.filter(user => 
     !currentMembers.some(member => member.user.id === user.id)
   ) || [];
-
+  
+  
   const handleUserSelect = (user) => {
     setSelectedUsers(prev => {
       const isSelected = prev.some(u => u.id === user.id);
