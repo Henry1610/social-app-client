@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { useSelector } from "react-redux";
-import { selectCurrentUser } from "../../features/auth/authSlice";
+import { useSelector, useDispatch } from "react-redux";
+import { selectCurrentUser, updateUser } from "../../features/auth/authSlice";
 import {
   useGetFollowStatsQuery,
   useGetPublicProfileQuery,
@@ -12,6 +12,7 @@ import {
   useCancelFollowRequestMutation,
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
+  useUploadAvatarMutation,
 } from "../../features/profile/profileApi";
 import { useParams } from "react-router-dom";
 import {
@@ -24,6 +25,7 @@ import {
   Lock,
   X,
   Settings,
+  Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../components/common/confirmToast";
@@ -36,8 +38,10 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); // "followers" hoặc "following"
+  const [modalType, setModalType] = useState(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const currentUser = useSelector(selectCurrentUser);
+  const dispatch = useDispatch();
   const { username: routeUsername } = useParams();
   const viewingUsername = routeUsername || currentUser?.username;
 
@@ -88,6 +92,7 @@ export default function Profile() {
     useAcceptFollowRequestMutation();
   const [rejectFollowRequest, { isLoading: rejecting }] =
     useRejectFollowRequestMutation();
+  const [uploadAvatar] = useUploadAvatarMutation();
 
   const isPrivate = profileUser?.privacySettings?.isPrivate;
 
@@ -104,10 +109,39 @@ export default function Profile() {
     setShowModal(true);
   };
 
-  // Đóng modal
   const closeModal = () => {
     setShowModal(false);
     setModalType(null);
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Chỉ chấp nhận file ảnh');
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('Kích thước ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const result = await uploadAvatar(file).unwrap();
+      if (result?.success && result?.user) {
+        dispatch(updateUser(result.user));
+        toast.success('Đã cập nhật ảnh đại diện');
+      }
+    } catch (error) {
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi upload ảnh');
+    } finally {
+      setIsUploadingAvatar(false);
+      e.target.value = '';
+    }
   };
 
   const onFollowToggle = async () => {
@@ -174,12 +208,36 @@ export default function Profile() {
         {/* Header */}
         <div className="flex gap-12 mb-12">
           {/* Avatar */}
-          <div className="w-40 h-40 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0">
+          <div className="relative w-40 h-40 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 group">
             <img
               src={profileUser?.avatarUrl}
               alt={profileUser?.username}
               className="w-full h-full object-cover"
             />
+            {isSelf && (
+              <>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  id="avatar-upload"
+                  disabled={isUploadingAvatar}
+                />
+                <label
+                  htmlFor="avatar-upload"
+                  className={`absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ${
+                    isUploadingAvatar ? 'opacity-100 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isUploadingAvatar ? (
+                    <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera size={32} className="text-white" />
+                  )}
+                </label>
+              </>
+            )}
           </div>
 
           {/* User Info */}

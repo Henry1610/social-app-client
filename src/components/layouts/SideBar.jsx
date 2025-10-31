@@ -24,9 +24,12 @@ import {
 import { NotificationCenter } from "../common/NotificationCenter";
 import SearchSkeleton from "../common/SearchSkeleton";
 import useLogout from "../../features/auth/useLogout";
+import CreatePostModal from "../../features/post/components/CreatePostModal";
+
 const Sidebar = () => {
   const [active, setActive] = useState(null);
   const [value, setValue] = useState("");
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
   const handleLogout = useLogout();
 
   const [triggerSearch, { data: searchData, isFetching }] =
@@ -59,6 +62,10 @@ const Sidebar = () => {
   ];
 
   const handleClick = (item) => {
+    if (item.label === "Tạo") {
+      setShowCreatePostModal(true);
+      return;
+    }
     if (["Tìm kiếm", "Thông báo"].includes(item.label)) {
       setActive(active === item.label ? null : item.label);
     } else {
@@ -340,6 +347,12 @@ const Sidebar = () => {
           </div>
         )}
       </div>
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        isOpen={showCreatePostModal}
+        onClose={() => setShowCreatePostModal(false)}
+      />
     </>
   );
 };

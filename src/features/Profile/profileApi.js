@@ -427,6 +427,18 @@ export const profileApi = baseApi.injectEndpoints({
         'User',
       ],
     }),
+    uploadAvatar: builder.mutation({
+      query: (file) => {
+        const formData = new FormData();
+        formData.append('avatar', file);
+        return {
+          url: '/user/avatar',
+          method: 'POST',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['User'],
+    }),
   })
 });
 
@@ -447,5 +459,6 @@ export const {
   useClearSearchHistoryMutation,
   useRecordSearchSelectionMutation,
   useDeleteSearchHistoryItemMutation,
-  useRemoveFollowerMutation
+  useRemoveFollowerMutation,
+  useUploadAvatarMutation
 } = profileApi;

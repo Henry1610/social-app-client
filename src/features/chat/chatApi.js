@@ -136,7 +136,7 @@ export const chatApi = baseApi.injectEndpoints({
     
     // Lấy tin nhắn đã ghim
     getPinnedMessages: builder.query({
-      query: (conversationId) => `/user/chat/conversations/${conversationId}/pinned`,
+      query: (conversationId) => `/user/chat/conversations/${conversationId}/pinned-messages`,
       providesTags: (result, error, conversationId) => [
         { type: 'PinnedMessages', id: conversationId }
       ]

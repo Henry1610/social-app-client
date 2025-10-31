@@ -6,6 +6,7 @@ import {
   Copy,
   Undo,
   Reply,
+  Pin,
 } from "lucide-react";
 
 const MessageItem = ({
@@ -29,6 +30,7 @@ const MessageItem = ({
   getMessageStatusIcon,
   onScrollToMessage,
   onRecallMessage,
+  onPinMessage,
 }) => {
   return (
     <div className="w-full">
@@ -112,8 +114,15 @@ const MessageItem = ({
                 : isOwnMessage
                   ? "bg-primary-btn text-white rounded-br-md"
                   : "bg-gray-100 text-gray-900 rounded-bl-md"
-            } group/message`}
+            } group/message ${
+              message.pinnedIn && message.pinnedIn.length > 0 ? 'border-l-2 border-blue-500' : ''
+            }`}
           >
+            {message.pinnedIn && message.pinnedIn.length > 0 && (
+              <div className="absolute -top-2 left-2 bg-blue-500 rounded-full p-1">
+                <Pin size={10} className="text-white fill-white" />
+              </div>
+            )}
             {editingMessage === message.id ? (
               // Edit mode
               <div className="space-y-2">
@@ -226,7 +235,7 @@ const MessageItem = ({
                 </div>
 
                 {/* Menu items */}
-                {canEditMessage(message) && (
+                {canEditMessage(message) && !message.mediaUrl && message.content && (
                   <button
                     onClick={() => onMenuAction("edit", message.id)}
                     className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
@@ -252,12 +261,22 @@ const MessageItem = ({
                   Chuyển tiếp
                 </button>
 
+                {message.content && (
+                  <button
+                    onClick={() => onMenuAction("copy", message.id)}
+                    className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
+                  >
+                    <Copy className="w-4 h-4 text-gray-600" />
+                    Sao chép
+                  </button>
+                )}
+
                 <button
-                  onClick={() => onMenuAction("copy", message.id)}
+                  onClick={() => onPinMessage && onPinMessage(message.id)}
                   className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
                 >
-                  <Copy className="w-4 h-4 text-gray-600" />
-                  Sao chép
+                  <Pin className={`w-4 h-4 ${message.pinnedIn && message.pinnedIn.length > 0 ? 'text-blue-500 fill-blue-500' : 'text-gray-600'}`} />
+                  {message.pinnedIn && message.pinnedIn.length > 0 ? 'Bỏ ghim' : 'Ghim tin nhắn'}
                 </button>
 
                 {/* Separator */}

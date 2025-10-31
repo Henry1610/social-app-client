@@ -4,7 +4,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { Check, CheckCheck, UserPlus, LogOut, X, Trash } from "lucide-react";
+import { Check, CheckCheck, UserPlus, LogOut, X, Trash, Pin, ChevronUp } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGetPublicProfileQuery } from "../profile/profileApi";
 import {
@@ -13,7 +13,8 @@ import {
   useGetConversationQuery,
   useGetConversationMembersQuery,
   chatApi,
-    useUploadChatMediaMutation,
+  useUploadChatMediaMutation,
+  useTogglePinMessageMutation,
 } from "./chatApi";
 import { useChat } from "../../contexts/ChatContext";
 import { useSelector } from "react-redux";
@@ -108,8 +109,19 @@ const ChatMain = ({ onStartNewMessage }) => {
     return messagesData?.data?.messages || [];
   }, [messagesData?.data?.messages]);
 
+  const pinnedMessages = useMemo(() => {
+    return messages.filter(msg => msg.pinnedIn && msg.pinnedIn.length > 0)
+      .sort((a, b) => {
+        const aPinnedAt = a.pinnedIn?.[0]?.pinnedAt || a.createdAt;
+        const bPinnedAt = b.pinnedIn?.[0]?.pinnedAt || b.createdAt;
+        return new Date(bPinnedAt) - new Date(aPinnedAt);
+      });
+  }, [messages]);
+
   const [isEditing, setIsEditing] = useState(false);
   const [uploadChatMedia] = useUploadChatMediaMutation();
+  const [togglePinMessage] = useTogglePinMessageMutation();
+  const [pinnedMessagesExpanded, setPinnedMessagesExpanded] = useState(true);
 
   const { data: editHistoryData } = useGetMessageEditHistoryQuery(
     showEditHistory,
@@ -213,7 +225,13 @@ const ChatMain = ({ onStartNewMessage }) => {
       if (data.conversationId === selectedConversation.id) {
         refetch();
       }
-      
+    };
+
+    const handleMessagePinned = (data) => {
+      if (data.conversationId === selectedConversation.id) {
+        refetch();
+        chatApi.util.invalidateTags(['Message', 'PinnedMessages']);
+      }
     };
 
     const handleChatError = (data) => {
@@ -241,6 +259,7 @@ const ChatMain = ({ onStartNewMessage }) => {
     socketService.on("chat:new_message", handleNewMessage);
     socketService.on("chat:message_edited", handleMessageEdited);
     socketService.on("chat:message_recalled", handleMessageRecalled);
+    socketService.on("chat:message_pinned", handleMessagePinned);
     socketService.on("chat:user_typing", handleTyping);
     socketService.on("message:status_update", handleMessageStatusUpdate);
     socketService.on("chat:error", handleChatError);
@@ -251,6 +270,7 @@ const ChatMain = ({ onStartNewMessage }) => {
       socketService.off("chat:new_message", handleNewMessage);
       socketService.off("chat:message_edited", handleMessageEdited);
       socketService.off("chat:message_recalled", handleMessageRecalled);
+      socketService.off("chat:message_pinned", handleMessagePinned);
       socketService.off("chat:user_typing", handleTyping);
       socketService.off("message:status_update", handleMessageStatusUpdate);
       socketService.off("chat:error", handleChatError);
@@ -276,7 +296,19 @@ const ChatMain = ({ onStartNewMessage }) => {
     }
   };
 
-  // Handle recall message
+  const handlePinMessage = async (messageId) => {
+    try {
+      const result = await togglePinMessage(messageId).unwrap();
+      if (result?.success) {
+        toast.success(result.message || 'Đã cập nhật trạng thái ghim tin nhắn');
+        refetch();
+        chatApi.util.invalidateTags(['Message', 'PinnedMessages']);
+      }
+    } catch (error) {
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi ghim tin nhắn');
+    }
+  };
+
   const handleRecallMessage = async (messageId) => {
     try {
       socketService.recallMessage({
@@ -763,6 +795,71 @@ const ChatMain = ({ onStartNewMessage }) => {
 
       {/* Message Area */}
       <div className="flex-1 overflow-y-auto">
+        {/* Pinned Messages Header - Sticky trong vùng cuộn */}
+        {pinnedMessages.length > 0 && selectedConversation && (
+          <div className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm transition-all duration-300 ease-in-out">
+            <div className="px-4 py-2">
+              <button
+                onClick={() => setPinnedMessagesExpanded(!pinnedMessagesExpanded)}
+                className="w-full flex items-center justify-between hover:bg-gray-50 rounded-lg p-2 transition-all duration-200 ease-in-out active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-2">
+                  <Pin size={16} className="text-blue-500 fill-blue-500 transition-transform duration-200 ease-in-out" />
+                  <span className="text-sm font-semibold text-gray-700">
+                    Tin nhắn đã ghim
+                  </span>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full transition-colors duration-200">
+                    {pinnedMessages.length}
+                  </span>
+                </div>
+                <div className="transition-transform duration-300 ease-in-out" style={{ transform: pinnedMessagesExpanded ? 'rotate(0deg)' : 'rotate(180deg)' }}>
+                  <ChevronUp size={16} className="text-gray-500" />
+                </div>
+              </button>
+              
+              <div 
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  pinnedMessagesExpanded ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'
+                }`}
+              >
+                <div className="space-y-2 overflow-y-auto max-h-48">
+                  {pinnedMessages.map((msg, index) => {
+                    return (
+                      <div
+                        key={`pinned-${msg.id}`}
+                        onClick={() => scrollToMessage(msg.id)}
+                        className="flex items-start gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-all duration-200 ease-in-out border border-gray-100 hover:border-blue-300 hover:shadow-sm active:scale-[0.98]"
+                        style={{
+                          animation: `slideDown 0.3s ease-out ${index * 0.05}s both`
+                        }}
+                      >
+                        <Pin size={14} className="text-blue-500 fill-blue-500 mt-1 flex-shrink-0 transition-transform duration-200 hover:scale-110" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold text-gray-900">
+                              {msg.sender?.fullName || msg.sender?.username}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(msg.createdAt).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-700 line-clamp-2 transition-colors duration-200 group-hover:text-gray-900">
+                            {msg.content || "Đã gửi một tệp đính kèm"}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col h-full">
           {/* User Profile Card - Luôn hiển thị */}
           <div className="flex-shrink-0 p-4">
@@ -934,6 +1031,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                             getMessageStatusIcon={getMessageStatusIcon}
                             onScrollToMessage={scrollToMessage}
                             onRecallMessage={handleRecallMessage}
+                            onPinMessage={handlePinMessage}
                           />
                           )}
                         </div>
