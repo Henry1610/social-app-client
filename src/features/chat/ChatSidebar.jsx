@@ -277,8 +277,10 @@ const ChatSidebar = ({
                       />
                     )}
                     
-                    {/* Online status indicator - chỉ hiển thị cho direct chat */}
-                    {conv.type === 'DIRECT' && onlineUsers[otherMember?.user?.id] && (
+                    {/* Online status indicator - chỉ hiển thị cho direct chat và khi showOnlineStatus = true */}
+                    {conv.type === 'DIRECT' && 
+                     onlineUsers[otherMember?.user?.id] && 
+                     otherMember?.user?.privacySettings?.showOnlineStatus !== false && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                     )}
                     
@@ -337,8 +339,8 @@ const ChatSidebar = ({
                       )}
                     </p>
                     
-                    {/* Online/Offline status - chỉ hiển thị cho DIRECT chat */}
-                    {conv.type === 'DIRECT' && (
+                    {/* Online/Offline status - chỉ hiển thị cho DIRECT chat và khi showOnlineStatus = true */}
+                    {conv.type === 'DIRECT' && otherMember?.user?.privacySettings?.showOnlineStatus !== false && (
                       <p className="text-xs text-gray-400 truncate">
                         {onlineUsers[otherMember?.user?.id] ? (
                           <span className="text-green-500">Đang hoạt động</span>

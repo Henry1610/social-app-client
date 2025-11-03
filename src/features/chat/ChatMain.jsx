@@ -6,7 +6,7 @@ import React, {
 } from "react";
 import { Check, CheckCheck, UserPlus, LogOut, X, Trash, Pin, ChevronUp } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useGetPublicProfileQuery } from "../profile/profileApi";
+import { useGetPublicProfileQuery, useGetFollowStatusQuery } from "../profile/profileApi";
 import {
   useGetMessagesQuery,
   useGetMessageEditHistoryQuery,
@@ -109,6 +109,59 @@ const ChatMain = ({ onStartNewMessage }) => {
     return messagesData?.data?.messages || [];
   }, [messagesData?.data?.messages]);
 
+  // Get the target user (the one we're chatting with)
+  const targetUser = displayUserInfo?.user || conversationUserInfo;
+  const targetUserId = targetUser?.id;
+
+  // Get follow status if it's a 1-1 chat (not group)
+  const { data: followStatus } = useGetFollowStatusQuery(
+    targetUser?.username,
+    { skip: !targetUser?.username || selectedConversation?.type === 'GROUP' }
+  );
+
+  const canMessage = useMemo(() => {
+    if (selectedConversation?.type === 'GROUP') {
+      return { allowed: true };
+    }
+
+    if (!targetUserId) {
+      return { allowed: true };
+    }
+
+    if (!targetUser?.privacySettings) {
+      if (isUsername && isLoading) {
+        return { allowed: false, reason: 'Đang tải...' };
+      }
+      return { allowed: true };
+    }
+
+    const whoCanMessage = targetUser.privacySettings.whoCanMessage || 'everyone';
+
+    if (whoCanMessage === 'nobody') {
+      const hasMessageFromTarget = messages.some(msg => msg.senderId === targetUserId);
+      if (!hasMessageFromTarget) {
+        return { 
+          allowed: false, 
+          reason: 'Không phải ai cũng có thể nhắn tin cho tài khoản này. Hãy liên hệ trực tiếp với họ để họ nhắn trước 1 dòng tin nhắn, sau đó bạn mới có thể bắt đầu cuộc trò chuyện.' 
+        };
+      }
+      return { allowed: true };
+    }
+
+    if (whoCanMessage === 'followers') {
+      if (!followStatus?.isFollowing) {
+        return { allowed: false, reason: 'Bạn phải theo dõi người này để nhắn tin' };
+      }
+      return { allowed: true };
+    }
+
+    if (whoCanMessage === 'everyone') {
+      return { allowed: true };
+    }
+
+    return { allowed: true };
+  }, [targetUser, targetUserId, followStatus, messages, selectedConversation?.type, isUsername, isLoading]);
+
   const pinnedMessages = useMemo(() => {
     return messages.filter(msg => msg.pinnedIn && msg.pinnedIn.length > 0)
       .sort((a, b) => {
@@ -136,7 +189,6 @@ const ChatMain = ({ onStartNewMessage }) => {
         conversationId: selectedConversation.id,
         userId: currentUserId
       });
-
       // Invalidate conversation cache để cập nhật badge trên sidebar
       chatApi.util.invalidateTags(["Conversation"]);
     }
@@ -362,6 +414,12 @@ const ChatMain = ({ onStartNewMessage }) => {
   // Handle send message
   const handleSendMessage = async () => {
     if ((!message.trim() && selectedMedia.length === 0) || !selectedConversation?.id) return;
+    
+    // Kiểm tra quyền nhắn tin
+    if (!canMessage.allowed) {
+      toast.error(canMessage.reason || 'Bạn không thể nhắn tin cho người này');
+      return;
+    }
 
     const messageContent = message.trim();
     const mediaToSend = selectedMedia;
@@ -1108,6 +1166,7 @@ const ChatMain = ({ onStartNewMessage }) => {
         selectedConversation={selectedConversation}
         selectedMedia={selectedMedia}
         onMediaSelect={setSelectedMedia}
+        canMessage={canMessage}
       />
 
 

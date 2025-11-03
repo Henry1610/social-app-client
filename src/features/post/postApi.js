@@ -46,6 +46,15 @@ export const postApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Post', { type: 'Post', id: 'LIST' }, { type: 'User', id: 'LIST' }],
     }),
+
+    // Xóa bài viết
+    deletePost: builder.mutation({
+      query: (postId) => ({
+        url: `/user/posts/${postId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Post', { type: 'Post', id: 'LIST' }, { type: 'User', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -55,5 +64,6 @@ export const {
   useGetMyPostsQuery,
   useGetPostByIdQuery,
   useUpdatePostMutation,
+  useDeletePostMutation,
 } = postApi;
 

@@ -12,6 +12,7 @@ const MessageInput = ({
   selectedConversation,
   selectedMedia,
   onMediaSelect,
+  canMessage = { allowed: true },
 }) => {
   const fileInputRef = useRef(null);
 
@@ -46,6 +47,18 @@ const MessageInput = ({
   const handleRemoveMedia = (mediaId) => {
     onMediaSelect(prev => prev.filter(m => m.id !== mediaId));
   };
+
+  if (!canMessage.allowed) {
+    return (
+      <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="text-center py-4 px-4">
+          <p className="text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
+            {canMessage.reason || 'Bạn không thể nhắn tin cho người này'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 border-gray-200 bg-white">

@@ -14,8 +14,9 @@ import {
   useRejectFollowRequestMutation,
   useUploadAvatarMutation,
   useGetUserPostsQuery,
+  useUpdatePrivacySettingsMutation,
 } from "../../features/profile/profileApi";
-import { useUpdatePostMutation, useGetPostByIdQuery, postApi } from "../../features/post/postApi";
+import { useUpdatePostMutation, useGetPostByIdQuery, useDeletePostMutation, postApi } from "../../features/post/postApi";
 import {
   useCreateCommentMutation,
   useGetCommentsByPostQuery,
@@ -55,11 +56,20 @@ export default function Profile() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
+  const [showUserPrivacyModal, setShowUserPrivacyModal] = useState(false);
   const [privacySettings, setPrivacySettings] = useState({
-    whoCanSee: "public",
+    whoCanSee: "everyone",
     whoCanComment: "everyone",
   });
+  const [userPrivacySettings, setUserPrivacySettings] = useState({
+    isPrivate: false,
+    whoCanMessage: "everyone",
+    whoCanTagMe: "everyone",
+    whoCanFindByUsername: "everyone",
+    showOnlineStatus: true,
+  });
   const [updatePost, { isLoading: isUpdatingPost }] = useUpdatePostMutation();
+  const [deletePost, { isLoading: isDeletingPost }] = useDeletePostMutation();
   const [createComment, { isLoading: isCommenting }] =
     useCreateCommentMutation();
   const [commentText, setCommentText] = useState("");
@@ -122,8 +132,33 @@ export default function Profile() {
   const [rejectFollowRequest, { isLoading: rejecting }] =
     useRejectFollowRequestMutation();
   const [uploadAvatar] = useUploadAvatarMutation();
+  const [updatePrivacySettings, { isLoading: isUpdatingPrivacy }] = useUpdatePrivacySettingsMutation();
 
   const isPrivate = profileUser?.privacySettings?.isPrivate;
+
+  // Helper function to normalize enum values
+  const normalizePrivacyEnum = (value) => {
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['everyone', 'followers', 'nobody'].includes(normalized)) {
+        return normalized;
+      }
+    }
+    return 'everyone'; // Default if invalid
+  };
+
+  // Load user privacy settings khi component mount
+  useEffect(() => {
+    if (currentUser?.privacySettings) {
+      setUserPrivacySettings({
+        isPrivate: Boolean(currentUser.privacySettings.isPrivate ?? false),
+        whoCanMessage: normalizePrivacyEnum(currentUser.privacySettings.whoCanMessage),
+        whoCanTagMe: normalizePrivacyEnum(currentUser.privacySettings.whoCanTagMe),
+        whoCanFindByUsername: normalizePrivacyEnum(currentUser.privacySettings.whoCanFindByUsername),
+        showOnlineStatus: Boolean(currentUser.privacySettings.showOnlineStatus ?? true),
+      });
+    }
+  }, [currentUser]);
 
   const { data: postsData, isLoading: loadingPosts } = useGetUserPostsQuery(
     { username: viewingUsername },
@@ -193,7 +228,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (selectedPostFull) {
-      const whoCanSee = selectedPostFull.whoCanSee || "public";
+      const whoCanSee = selectedPostFull.whoCanSee || "everyone";
       const whoCanComment = selectedPostFull.whoCanComment || "everyone";
       setPrivacySettings({
         whoCanSee,
@@ -446,7 +481,12 @@ export default function Profile() {
                 <button className="px-6 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold transition">
                   Chỉnh sửa trang cá nhân
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-lg transition">
+                <button
+                  onClick={() => {
+                    setShowUserPrivacyModal(true);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition"
+                >
                   <Settings size={20} />
                 </button>
               </FollowButton>
@@ -697,6 +737,29 @@ export default function Profile() {
                                 <Settings size={16} />
                                 Cài đặt quyền riêng tư
                               </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setShowSettingsMenu(false);
+                                  
+                                  const confirmed = await confirmToast("Bạn có chắc chắn muốn xóa bài viết này?");
+                                  
+                                  if (confirmed && selectedPostFull?.id) {
+                                    try {
+                                      await deletePost(selectedPostFull.id).unwrap();
+                                      toast.success("Đã xóa bài viết");
+                                      handleClosePostModal();
+                                    } catch (error) {
+                                      toast.error(error?.data?.message || "Xóa bài viết thất bại");
+                                    }
+                                  }
+                                }}
+                                disabled={isDeletingPost}
+                                className="w-full text-left px-5 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 disabled:opacity-50"
+                              >
+                                <X size={16} />
+                                Xóa bài viết
+                              </button>
                             </div>
                           )}
                         </div>
@@ -899,9 +962,9 @@ export default function Profile() {
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
                               >
-                                <option value="public">Công khai - Mọi người có thể xem</option>
-                                <option value="follower">Người theo dõi - Chỉ người theo dõi bạn</option>
-                                <option value="private">Riêng tư - Chỉ bạn mới thấy</option>
+                                <option value="everyone">Công khai - Mọi người có thể xem</option>
+                                <option value="followers">Người theo dõi - Chỉ người theo dõi bạn</option>
+                                <option value="nobody">Riêng tư - Chỉ bạn mới thấy</option>
                               </select>
                               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                             </div>
@@ -923,8 +986,8 @@ export default function Profile() {
                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
                               >
                                 <option value="everyone">Mọi người - Ai cũng có thể bình luận</option>
-                                <option value="follower">Người theo dõi - Chỉ người theo dõi bạn</option>
-                                <option value="no_one">Tắt - Không ai có thể bình luận</option>
+                                <option value="followers">Người theo dõi - Chỉ người theo dõi bạn</option>
+                                <option value="nobody">Tắt - Không ai có thể bình luận</option>
                               </select>
                               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                             </div>
@@ -956,7 +1019,7 @@ export default function Profile() {
                                 e.stopPropagation();
                                 setShowPrivacySettings(false);
                                 setPrivacySettings({
-                                  whoCanSee: selectedPostFull.whoCanSee || "public",
+                                  whoCanSee: selectedPostFull.whoCanSee || "everyone",
                                   whoCanComment: selectedPostFull.whoCanComment || "everyone",
                                 });
                               }}
@@ -1095,6 +1158,183 @@ export default function Profile() {
                   </div>
                 )
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Privacy Settings */}
+      {showUserPrivacyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">Cài đặt quyền riêng tư</h2>
+              <button
+                onClick={() => setShowUserPrivacyModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-full transition"
+              >
+                <X size={24} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Tài khoản riêng tư */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">Tài khoản riêng tư</h3>
+                  <p className="text-sm text-gray-500">
+                    Chỉ những người bạn chấp nhận theo dõi mới thấy bài viết của bạn
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={userPrivacySettings.isPrivate}
+                    onChange={(e) =>
+                      setUserPrivacySettings({
+                        ...userPrivacySettings,
+                        isPrivate: e.target.checked,
+                      })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6 space-y-5">
+                {/* Ai có thể nhắn tin cho bạn */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Ai có thể nhắn tin cho bạn?
+                  </label>
+                  <select
+                    value={userPrivacySettings.whoCanMessage}
+                    onChange={(e) =>
+                      setUserPrivacySettings({
+                        ...userPrivacySettings,
+                        whoCanMessage: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                  >
+                    <option value="everyone">Mọi người</option>
+                    <option value="followers">Chỉ người theo dõi</option>
+                    <option value="nobody">Không ai</option>
+                  </select>
+                </div>
+
+                {/* Ai có thể gắn thẻ bạn */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Ai có thể gắn thẻ bạn?
+                  </label>
+                  <select
+                    value={userPrivacySettings.whoCanTagMe}
+                    onChange={(e) =>
+                      setUserPrivacySettings({
+                        ...userPrivacySettings,
+                        whoCanTagMe: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                  >
+                    <option value="everyone">Mọi người</option>
+                    <option value="followers">Chỉ người theo dõi</option>
+                    <option value="nobody">Không ai</option>
+                  </select>
+                </div>
+
+                {/* Ai có thể tìm bạn bằng tên người dùng */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Ai có thể tìm bạn bằng tên người dùng?
+                  </label>
+                  <select
+                    value={userPrivacySettings.whoCanFindByUsername}
+                    onChange={(e) =>
+                      setUserPrivacySettings({
+                        ...userPrivacySettings,
+                        whoCanFindByUsername: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                  >
+                    <option value="everyone">Mọi người</option>
+                    <option value="followers">Chỉ người theo dõi</option>
+                    <option value="nobody">Không ai</option>
+                  </select>
+                </div>
+
+                {/* Hiển thị trạng thái hoạt động */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Hiển thị trạng thái hoạt động</h3>
+                    <p className="text-sm text-gray-500">
+                      Cho phép mọi người thấy khi bạn đang online
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={userPrivacySettings.showOnlineStatus}
+                      onChange={(e) =>
+                        setUserPrivacySettings({
+                          ...userPrivacySettings,
+                          showOnlineStatus: e.target.checked,
+                        })
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowUserPrivacyModal(false)}
+                className="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    // Normalize enum values before sending
+                    const payload = {
+                      isPrivate: Boolean(userPrivacySettings.isPrivate),
+                      whoCanMessage: normalizePrivacyEnum(userPrivacySettings.whoCanMessage),
+                      whoCanTagMe: normalizePrivacyEnum(userPrivacySettings.whoCanTagMe),
+                      whoCanFindByUsername: normalizePrivacyEnum(userPrivacySettings.whoCanFindByUsername),
+                      showOnlineStatus: Boolean(userPrivacySettings.showOnlineStatus),
+                    };
+                    await updatePrivacySettings(payload).unwrap();
+                    toast.success("Đã cập nhật cài đặt quyền riêng tư");
+                    setShowUserPrivacyModal(false);
+                  } catch (error) {
+                    toast.error(error?.data?.message || "Cập nhật thất bại");
+                  }
+                }}
+                disabled={isUpdatingPrivacy}
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center gap-2"
+              >
+                {isUpdatingPrivacy ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  "Lưu thay đổi"
+                )}
+              </button>
             </div>
           </div>
         </div>

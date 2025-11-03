@@ -11,7 +11,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [showCaption, setShowCaption] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [whoCanSee, setWhoCanSee] = useState("public");
+  const [whoCanSee, setWhoCanSee] = useState("everyone");
   const [whoCanComment, setWhoCanComment] = useState("everyone");
   const [showAspectRatioMenu, setShowAspectRatioMenu] = useState(false);
   const [aspectRatio, setAspectRatio] = useState("original"); // original, 1:1, 4:5, 16:9
@@ -154,7 +154,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
     setIsDragging(false);
     setShowCaption(false);
     setCurrentIndex(0);
-    setWhoCanSee("public");
+    setWhoCanSee("everyone");
     setWhoCanComment("everyone");
     setAspectRatio("original");
     setShowAspectRatioMenu(false);
@@ -425,9 +425,9 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                           onChange={(e) => setWhoCanSee(e.target.value)}
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
                         >
-                          <option value="public">Công khai - Mọi người có thể xem</option>
-                          <option value="follower">Người theo dõi - Chỉ người theo dõi bạn</option>
-                          <option value="private">Riêng tư - Chỉ bạn mới thấy</option>
+                          <option value="everyone">Công khai - Mọi người có thể xem</option>
+                          <option value="followers">Người theo dõi - Chỉ người theo dõi bạn</option>
+                          <option value="nobody">Riêng tư - Chỉ bạn mới thấy</option>
                         </select>
                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                       </div>
@@ -443,8 +443,8 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
                         >
                           <option value="everyone">Mọi người - Ai cũng có thể bình luận</option>
-                          <option value="follower">Người theo dõi - Chỉ người theo dõi bạn</option>
-                          <option value="no_one">Tắt - Không ai có thể bình luận</option>
+                          <option value="followers">Người theo dõi - Chỉ người theo dõi bạn</option>
+                          <option value="nobody">Tắt - Không ai có thể bình luận</option>
                         </select>
                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                       </div>

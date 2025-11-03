@@ -35,6 +35,15 @@ export const profileApi = baseApi.injectEndpoints({
         { type: 'User', id: `followings-${username}` },
       ],
     }),
+
+    updatePrivacySettings: builder.mutation({
+      query: (data) => ({
+        url: '/user/privacy',
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['User'],
+    }),
     
     followUser: builder.mutation({
       query: (username) => ({ url: `/user/follows/${username}`, method: 'POST' }),
@@ -470,5 +479,6 @@ export const {
   useDeleteSearchHistoryItemMutation,
   useRemoveFollowerMutation,
   useUploadAvatarMutation,
-  useGetUserPostsQuery
+  useGetUserPostsQuery,
+  useUpdatePrivacySettingsMutation,
 } = profileApi;
