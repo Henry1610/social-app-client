@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Image, Play, ChevronLeft, ChevronRight, Plus, Maximize2, Loader2 } from "lucide-react";
+import { X, Image, Play, ChevronLeft, ChevronRight, Plus, Maximize2, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useCreatePostMutation, useUploadPostMediaMutation } from "../postApi";
 
@@ -415,55 +415,39 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                   </div>
                   
                   {/* Privacy Settings */}
-                  <div className="p-4 border-t border-gray-200 space-y-4">
+                  <div className="p-4 border-t border-gray-200 space-y-3">
                     {/* Who can see */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          {whoCanSee === "public" ? "Công khai" : "Chỉ mình tôi"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Ai có thể xem bài viết này?
-                        </p>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">Ai có thể xem?</p>
+                      <div className="relative">
+                        <select
+                          value={whoCanSee}
+                          onChange={(e) => setWhoCanSee(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
+                        >
+                          <option value="public">Công khai - Mọi người có thể xem</option>
+                          <option value="follower">Người theo dõi - Chỉ người theo dõi bạn</option>
+                          <option value="private">Riêng tư - Chỉ bạn mới thấy</option>
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setWhoCanSee(whoCanSee === "public" ? "private" : "public")}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                          whoCanSee === "public" ? "bg-blue-500" : "bg-gray-300"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            whoCanSee === "public" ? "translate-x-5" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
                     </div>
                     
                     {/* Who can comment */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          {whoCanComment === "everyone" ? "Cho phép bình luận" : "Tắt bình luận"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Ai có thể bình luận?
-                        </p>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">Ai có thể bình luận?</p>
+                      <div className="relative">
+                        <select
+                          value={whoCanComment}
+                          onChange={(e) => setWhoCanComment(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
+                        >
+                          <option value="everyone">Mọi người - Ai cũng có thể bình luận</option>
+                          <option value="follower">Người theo dõi - Chỉ người theo dõi bạn</option>
+                          <option value="no_one">Tắt - Không ai có thể bình luận</option>
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setWhoCanComment(whoCanComment === "everyone" ? "no_one" : "everyone")}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                          whoCanComment === "everyone" ? "bg-blue-500" : "bg-gray-300"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            whoCanComment === "everyone" ? "translate-x-5" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
                     </div>
                   </div>
                 </div>

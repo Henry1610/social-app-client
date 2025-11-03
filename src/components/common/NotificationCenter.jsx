@@ -1,5 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { selectCurrentUser } from "../../features/auth/authSlice";
 import {
   useGetNotificationsQuery,
 } from "../../features/profile/profileApi";
@@ -9,6 +11,7 @@ import NotificationSkeleton from "./NotificationSkeleton";
 
 export const NotificationCenter = () => {
   const navigate = useNavigate();
+  const currentUser = useSelector(selectCurrentUser);
 
   const {
     data: notificationsData,
@@ -25,8 +28,9 @@ export const NotificationCenter = () => {
     }
   }, [error]);
 
-  //  Click vào thông báo
+  // Xử lý click vào thông báo
   const handleNotificationClick = (n) => {
+    // Thông báo follow - đi đến profile của người đó
     if (
       [
         "FOLLOW",
@@ -35,8 +39,19 @@ export const NotificationCenter = () => {
         "FOLLOW_REJECTED",
       ].includes(n.type)
     ) {
-      const username = n.metadata?.lastActorName?.username;
-      if (username) navigate(`/${username}`);
+      const actor = n.actor || n.metadata?.lastActorName;
+      const username = actor?.username;
+      if (username) {
+        navigate(`/${username}`);
+      }
+    } 
+    // Thông báo comment/like/repost - mở post modal
+    else if (["COMMENT", "REACTION", "REPOST"].includes(n.type) && n.targetId && n.targetType === "POST") {
+      // Navigate đến profile hiện tại với postId, Profile component sẽ tự mở modal
+      const currentUsername = currentUser?.username;
+      if (currentUsername) {
+        navigate(`/${currentUsername}?postId=${n.targetId}`);
+      }
     }
   };
 
@@ -56,30 +71,36 @@ export const NotificationCenter = () => {
 
   return (
     <div className="divide-y divide-gray-100">
-      {notifications.map((n, index) => (
-        <div
-          key={`${n.id}-${n.createdAt}-${index}`}
-          onClick={() => handleNotificationClick(n)}
-          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all cursor-pointer"
-        >
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            <img
-              src={n.metadata?.lastActorName?.avatarUrl}
-              alt="Avatar"
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          </div>
+      {notifications.map((n, index) => {
+        const actor = n.actor || n.metadata?.lastActorName;
+        const avatarUrl = actor?.avatarUrl ;
+        const username = actor?.username;
+        
+        return (
+          <div
+            key={`${n.id}-${n.createdAt}-${index}`}
+            onClick={() => handleNotificationClick(n)}
+            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all cursor-pointer"
+          >
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              <img
+                src={avatarUrl}
+                alt={username }
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            </div>
 
-          {/* Nội dung */}
-          <div className="flex-1 text-sm text-gray-800">
-            <p>{n.message}</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {formatTimeAgo(n.updatedAt)}
-            </p>
+            {/* Nội dung */}
+            <div className="flex-1 text-sm text-gray-800">
+              <p>{n.message}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {formatTimeAgo(n.updatedAt)}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

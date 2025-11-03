@@ -439,6 +439,15 @@ export const profileApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ['User'],
     }),
+    getUserPosts: builder.query({
+      query: ({ username, page = 1, limit = 12 }) => ({
+        url: `/user/${username}/posts`,
+        params: { page, limit },
+      }),
+      providesTags: (result, error, { username }) => [
+        { type: 'User', id: `posts-${username}` },
+      ],
+    }),
   })
 });
 
@@ -460,5 +469,6 @@ export const {
   useRecordSearchSelectionMutation,
   useDeleteSearchHistoryItemMutation,
   useRemoveFollowerMutation,
-  useUploadAvatarMutation
+  useUploadAvatarMutation,
+  useGetUserPostsQuery
 } = profileApi;

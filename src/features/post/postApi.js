@@ -36,6 +36,16 @@ export const postApi = baseApi.injectEndpoints({
       query: (postId) => `/user/posts/${postId}`,
       providesTags: (result, error, postId) => [{ type: 'Post', id: postId }],
     }),
+
+    // Cập nhật bài viết
+    updatePost: builder.mutation({
+      query: ({ postId, ...data }) => ({
+        url: `/user/posts/${postId}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: ['Post', { type: 'Post', id: 'LIST' }, { type: 'User', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -44,5 +54,6 @@ export const {
   useUploadPostMediaMutation,
   useGetMyPostsQuery,
   useGetPostByIdQuery,
+  useUpdatePostMutation,
 } = postApi;
 

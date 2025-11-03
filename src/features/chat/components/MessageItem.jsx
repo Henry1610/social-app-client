@@ -2,7 +2,6 @@ import React from "react";
 import {
   MoreHorizontal,
   Edit,
-  Forward,
   Copy,
   Undo,
   Reply,
@@ -43,18 +42,18 @@ const MessageItem = ({
               ? (message.replyTo.senderId === currentUserId 
                   ? "Bạn đã trả lời chính mình" 
                   : `Bạn đã trả lời ${message.replyTo.sender?.fullName || message.replyTo.sender?.username}`)
-              : `${message.sender?.fullName || message.sender?.username} đã trả lời bạn`
+              : (message.replyTo.senderId === currentUserId
+                  ? `${message.sender?.fullName || message.sender?.username} đã trả lời bạn`
+                  : message.replyTo.senderId === message.senderId
+                    ? `${message.sender?.fullName || message.sender?.username} đã trả lời chính mình`
+                    : `${message.sender?.fullName || message.sender?.username} đã trả lời ${message.replyTo.sender?.fullName || message.replyTo.sender?.username}`)
             }
           </div>
           
           {/* Tin nhắn gốc được reply */}
           <div className={`${isOwnMessage ? "flex justify-end pr-12" : "flex justify-start pl-14 sm:pl-16"}`}>
             <div 
-              className={`px-3 py-2 rounded-lg text-sm max-w-xs border-l-4 cursor-pointer hover:opacity-80 transition-opacity ${
-                isOwnMessage 
-                  ? "bg-gray-200 text-gray-700 border-gray-400" 
-                  : "bg-gray-100 text-gray-600 border-gray-300"
-              }`}
+              className={`px-3 py-2 rounded-lg text-sm max-w-xs cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-600`}
               onClick={() => onScrollToMessage && onScrollToMessage(message.replyTo.id)}
             >
               <p className="truncate">{message.replyTo.content}</p>
@@ -107,16 +106,22 @@ const MessageItem = ({
           {/* Message bubble */}
           <div
             className={`relative ${
-              message.mediaUrl && !message.content ? "p-0 bg-transparent" : "px-5 py-2"
+              message.isRecalled 
+                ? "px-5 py-2"
+                : message.mediaUrl && !message.content 
+                  ? "p-0 bg-transparent" 
+                  : "px-5 py-2"
             } rounded-2xl ${
-              message.mediaUrl && !message.content
-                ? ""
-                : isOwnMessage
+              message.isRecalled
+                ? isOwnMessage
                   ? "bg-primary-btn text-white rounded-br-md"
                   : "bg-gray-100 text-gray-900 rounded-bl-md"
-            } group/message ${
-              message.pinnedIn && message.pinnedIn.length > 0 ? 'border-l-2 border-blue-500' : ''
-            }`}
+                : message.mediaUrl && !message.content
+                  ? ""
+                  : isOwnMessage
+                    ? "bg-primary-btn text-white rounded-br-md"
+                    : "bg-gray-100 text-gray-900 rounded-bl-md"
+            } group/message`}
           >
             {message.pinnedIn && message.pinnedIn.length > 0 && (
               <div className="absolute -top-2 left-2 bg-blue-500 rounded-full p-1">
@@ -251,14 +256,6 @@ const MessageItem = ({
                 >
                   <Reply className="w-4 h-4 text-gray-600" />
                   Trả lời
-                </button>
-
-                <button
-                  onClick={() => onMenuAction("forward", message.id)}
-                  className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Forward className="w-4 h-4 text-gray-600" />
-                  Chuyển tiếp
                 </button>
 
                 {message.content && (

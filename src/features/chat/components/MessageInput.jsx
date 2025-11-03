@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Send, Smile, Paperclip, X } from "lucide-react";
+import { Send, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 
 const MessageInput = ({
@@ -115,14 +115,9 @@ const MessageInput = ({
               onTyping();
             }}
             onKeyPress={onKeyPress}
-            className="w-full py-2 px-4 pr-12 rounded-full text-gray-900 focus:outline-none focus:bg-white transition-colors"
+            className="w-full py-2 px-4 rounded-full text-gray-900 focus:outline-none focus:bg-white transition-colors"
             disabled={!selectedConversation}
           />
-
-          {/* Emoji button */}
-          <button className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 transition-colors">
-            <Smile className="w-5 h-5 text-gray-600" />
-          </button>
         </div>
 
         {/* Send button */}

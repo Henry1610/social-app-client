@@ -121,7 +121,7 @@ const ChatMain = ({ onStartNewMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [uploadChatMedia] = useUploadChatMediaMutation();
   const [togglePinMessage] = useTogglePinMessageMutation();
-  const [pinnedMessagesExpanded, setPinnedMessagesExpanded] = useState(true);
+  const [pinnedMessagesExpanded, setPinnedMessagesExpanded] = useState(false);
 
   const { data: editHistoryData } = useGetMessageEditHistoryQuery(
     showEditHistory,
@@ -315,6 +315,7 @@ const ChatMain = ({ onStartNewMessage }) => {
         messageId: messageId,
         conversationId: selectedConversation.id
       });
+      setShowMessageMenu(null);
     } catch (error) {
       console.error("Error recalling message:", error);
     }
@@ -324,7 +325,6 @@ const ChatMain = ({ onStartNewMessage }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Ensure initial scroll after messages fetched (e.g., reload)
   useEffect(() => {
     if (!isLoadingMessages && messages?.length > 0 && !didInitialScroll) {
       setTimeout(() => {
@@ -935,7 +935,19 @@ const ChatMain = ({ onStartNewMessage }) => {
 
                 {/* Action Buttons */}
                 <div className="flex">
-                  <button className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+                  <button 
+                    onClick={() => {
+                      if (selectedConversation?.type === 'GROUP') {
+                        setShowMembersModal(true);
+                      } else {
+                        const targetUsername = conversationUserInfo?.username || userInfo?.username;
+                        if (targetUsername) {
+                          navigate(`/${targetUsername}`);
+                        }
+                      }
+                    }}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                  >
                     {selectedConversation?.type === 'GROUP' ? 'Xem thông tin nhóm' : 'Xem trang cá nhân'}
                   </button>
                 </div>
