@@ -417,7 +417,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                   {/* Privacy Settings */}
                   <div className="p-4 border-t border-gray-200 space-y-3">
                     {/* Who can see */}
-                    <div>
+                      <div>
                       <p className="text-xs text-gray-500 mb-1.5">Ai có thể xem?</p>
                       <div className="relative">
                         <select
@@ -434,7 +434,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                     </div>
                     
                     {/* Who can comment */}
-                    <div>
+                      <div>
                       <p className="text-xs text-gray-500 mb-1.5">Ai có thể bình luận?</p>
                       <div className="relative">
                         <select

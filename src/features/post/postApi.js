@@ -55,6 +55,54 @@ export const postApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Post', { type: 'Post', id: 'LIST' }, { type: 'User', id: 'LIST' }],
     }),
+
+    // Đánh dấu bài viết đã xem
+    markPostAsViewed: builder.mutation({
+      query: (postId) => ({
+        url: `/user/posts/${postId}/view`,
+        method: 'POST',
+      }),
+    }),
+
+    // Lấy feed posts (từ users đang follow + chính mình)
+    getFeedPosts: builder.query({
+      query: ({ page = 1, limit = 20 } = {}) => ({
+        url: '/user/posts/feed',
+        params: { page, limit },
+      }),
+      providesTags: ['Post'],
+    }),
+
+    // Lưu bài viết
+    savePost: builder.mutation({
+      query: (postId) => ({
+        url: `/user/posts/${postId}/save`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, postId) => [
+        { type: 'Post', id: postId },
+      ],
+    }),
+
+    // Bỏ lưu bài viết
+    unsavePost: builder.mutation({
+      query: (postId) => ({
+        url: `/user/posts/${postId}/save`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, postId) => [
+        { type: 'Post', id: postId },
+      ],
+    }),
+
+    // Lấy danh sách bài viết đã lưu
+    getSavedPosts: builder.query({
+      query: ({ username, page = 1, limit = 20 } = {}) => ({
+        url: `/user/${username}/saved-posts`,
+        params: { page, limit },
+      }),
+      providesTags: ['Post'],
+    }),
   }),
 });
 
@@ -65,5 +113,10 @@ export const {
   useGetPostByIdQuery,
   useUpdatePostMutation,
   useDeletePostMutation,
+  useMarkPostAsViewedMutation,
+  useGetFeedPostsQuery,
+  useSavePostMutation,
+  useUnsavePostMutation,
+  useGetSavedPostsQuery,
 } = postApi;
 

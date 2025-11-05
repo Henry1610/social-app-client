@@ -84,6 +84,19 @@ const ChatSidebar = ({
     };
   }, [currentUser?.id]);
 
+  // Helper function để kiểm tra user có thực sự online không (dựa vào isOnline và lastSeen)
+  const isUserActuallyOnline = React.useCallback((user) => {
+    if (!user?.isOnline) return false;
+    if (!user?.lastSeen) return false;
+    
+    const lastSeenDate = new Date(user.lastSeen);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
+    
+    // Nếu lastSeen quá 5 phút thì coi như offline
+    return diffMinutes <= 5;
+  }, []);
+
   // Initialize online users from API data
   useEffect(() => {
     if (conversations.length > 0) {
@@ -91,21 +104,28 @@ const ChatSidebar = ({
       conversations.forEach(conv => {
         conv.members?.forEach(member => {
           if (member.user.id !== currentUser?.id) {
-            initialOnlineUsers[member.user.id] = member.user.isOnline || false;
+            initialOnlineUsers[member.user.id] = isUserActuallyOnline(member.user);
           }
         });
       });
       setOnlineUsers(initialOnlineUsers);
     }
-  }, [conversations, currentUser?.id]);
+  }, [conversations, currentUser?.id, isUserActuallyOnline]);
 
   // Listen for user status updates (online/offline)
   useEffect(() => {
     const handleUserStatus = (data) => {
+      // Kiểm tra lại dựa vào lastSeen nếu có
+      const isOnline = data.isOnline && data.lastSeen ? (() => {
+        const lastSeenDate = new Date(data.lastSeen);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
+        return diffMinutes <= 5;
+      })() : data.isOnline;
       
       setOnlineUsers(prev => ({
         ...prev,
-        [data.userId]: data.isOnline
+        [data.userId]: isOnline
       }));
     };
 
@@ -116,15 +136,25 @@ const ChatSidebar = ({
     };
   }, []);
 
-  // Cập nhật thời gian offline theo thời gian thực (mỗi phút)
+  // Cập nhật online status định kỳ dựa vào lastSeen (mỗi phút)
   useEffect(() => {
     const interval = setInterval(() => {
-      // Force re-render để cập nhật thời gian offline
-      setOnlineUsers(prev => ({ ...prev }));
-    }, 60000); // Cập nhật mỗi phút
+      // Kiểm tra lại online status của tất cả users dựa vào lastSeen
+      setOnlineUsers(prev => {
+        const updated = { ...prev };
+        conversations.forEach(conv => {
+          conv.members?.forEach(member => {
+            if (member.user.id !== currentUser?.id) {
+              updated[member.user.id] = isUserActuallyOnline(member.user);
+            }
+          });
+        });
+        return updated;
+      });
+    }, 60000); // Mỗi phút
 
     return () => clearInterval(interval);
-  }, []);
+  }, [conversations, currentUser?.id, isUserActuallyOnline]);
 
   return (
     <div className="flex flex-col h-full bg-white text-gray-900">

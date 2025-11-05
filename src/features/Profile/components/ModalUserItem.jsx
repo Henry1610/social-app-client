@@ -6,11 +6,11 @@ import {
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
   useRemoveFollowerMutation
-} from "./profileApi";
+} from "../profileApi";
 import { toast } from "react-hot-toast";
-import FollowButton from "../../components/common/FollowButton";
-import confirmToast from "../../components/common/confirmToast";
-import ModalSkeleton from "../../components/common/ModalSkeleton";
+import FollowButton from "./FollowButton";
+import confirmToast from "../../../components/common/confirmToast";
+import ModalSkeleton from "../../../components/common/ModalSkeleton";
 
 const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSelfProfile = false }) => {
   const navigate = useNavigate();
@@ -30,13 +30,12 @@ const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSel
 
   const isSelf = user.id === currentUserId;
 
-  // Hiển thị skeleton khi đang loading
   if (initialLoading || loadingFollowStatus) {
     return <ModalSkeleton count={1} showButtons={true} />;
   }
 
   const handleFollowToggle = async () => {
-    if (following || unfollowing) return; // Prevent multiple clicks
+    if (following || unfollowing) return; 
     
     try {
       if (followStatus?.isFollowing) {

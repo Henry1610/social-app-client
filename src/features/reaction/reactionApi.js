@@ -11,10 +11,8 @@ export const reactionApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, { targetId, targetType }) => [
         { type: 'Post', id: targetType === 'POST' ? targetId : undefined },
         { type: 'Comment', id: targetType === 'COMMENT' ? targetId : undefined },
-        { type: 'Post', id: 'LIST' },
         { type: 'Reaction', id: `${targetType}_${targetId}_me` },
         { type: 'Reaction', id: `${targetType}_${targetId}` },
-        { type: 'Reaction', id: `${targetType}_${targetId}_summary` },
       ],
     }),
 
@@ -25,16 +23,6 @@ export const reactionApi = baseApi.injectEndpoints({
       }),
       providesTags: (result, error, { targetId, targetType }) => [
         { type: 'Reaction', id: `${targetType}_${targetId}` },
-      ],
-    }),
-
-    getReactionSummary: builder.query({
-      query: ({ targetId, targetType }) => ({
-        url: '/user/reactions/summary',
-        params: { targetId, targetType },
-      }),
-      providesTags: (result, error, { targetId, targetType }) => [
-        { type: 'Reaction', id: `${targetType}_${targetId}_summary` },
       ],
     }),
 
@@ -53,7 +41,6 @@ export const reactionApi = baseApi.injectEndpoints({
 export const {
   useCreateOrUpdateReactionMutation,
   useGetReactionsQuery,
-  useGetReactionSummaryQuery,
   useGetMyReactionQuery,
 } = reactionApi;
 

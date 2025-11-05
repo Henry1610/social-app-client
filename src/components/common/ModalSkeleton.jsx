@@ -1,4 +1,3 @@
-import React from "react";
 
 const ModalSkeleton = ({ count = 8, showButtons = true }) => {
   return (
