@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Bỏ màu xanh khi focus input (chỉ bỏ ring, giữ border) */
+input:focus {
+  outline: none !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-width: 0px !important;
+}
+
+
 @keyframes slideDown {
   from {
     opacity: 0;

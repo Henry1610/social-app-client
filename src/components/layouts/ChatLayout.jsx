@@ -1,14 +1,18 @@
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { ChatProvider, useChat } from '../../contexts/ChatContext';
+import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from '../../features/chat/ChatSidebar';
 
-const ChatLayoutContent = () => {
-  const { selectedConversation, setSelectedConversation, searchQuery, setSearchQuery } = useChat();
+const ChatLayout = () => {
+  const { 
+    selectedConversation, 
+    setSelectedConversation
+  } = useChat();
   const navigate = useNavigate();
 
   const handleSelectConversation = (conversation) => {
     setSelectedConversation(conversation);
+    // Luôn navigate đến conversation khi ở trong ChatLayout
     navigate(`/chat/${conversation.id}`);
   };
 
@@ -19,8 +23,6 @@ const ChatLayoutContent = () => {
         <ChatSidebar 
           selectedConversation={selectedConversation}
           onSelectConversation={handleSelectConversation}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
         />
       </div>
 
@@ -29,14 +31,6 @@ const ChatLayoutContent = () => {
         <Outlet /> {/* Hiển thị children routes */}
       </div>
     </div>
-  );
-};
-
-const ChatLayout = () => {
-  return (
-    <ChatProvider>
-      <ChatLayoutContent />
-    </ChatProvider>
   );
 };
 

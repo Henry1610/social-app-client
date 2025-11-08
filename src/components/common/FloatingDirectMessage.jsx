@@ -1,43 +1,72 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Maximize, X, ArrowLeft } from "lucide-react";
 import { useSelector } from "react-redux";
-import { useGetConversationsQuery, useGetMessagesQuery, useUploadChatMediaMutation } from "../../features/chat/chatApi";
+import { useGetConversationsQuery } from "../../features/chat/chatApi";
 import { selectCurrentUser } from "../../features/auth/authSlice";
 import { formatTimeAgo } from "../../utils/formatTimeAgo";
-import socketService from "../../services/socket";
+import { useChat } from "../../contexts/ChatContext";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useChatLogic } from "../../features/chat/hooks/useChatLogic";
 import MessageItem from "../../features/chat/components/MessageItem";
 import MessageInput from "../../features/chat/components/MessageInput";
+import ReplyPreview from "../../features/chat/components/ReplyPreview";
 import EditHistoryModal from "../../features/chat/components/EditHistoryModal";
-import { useGetMessageEditHistoryQuery } from "../../features/chat/chatApi";
+import TypingIndicator from "../../features/chat/components/TypingIndicator";
+import DateSeparator from "../../features/chat/components/DateSeparator";
+import SystemMessage from "../../features/chat/components/SystemMessage";
+import EmptyMessagesState from "../../features/chat/components/EmptyMessagesState";
+import ChatProfileCard from "../../features/chat/components/ChatProfileCard";
+import ConversationAvatars from "./ConversationAvatars";
+import PinnedMessagesBar from "../../features/chat/components/PinnedMessagesBar";
+
 const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConversation }) => {
-  const [open, setOpen] = useState(false);
-  const [selectedConv, setSelectedConv] = useState(null);
-  const [message, setMessage] = useState("");
-  const [selectedMedia, setSelectedMedia] = useState([]);
-  const [showEditHistory, setShowEditHistory] = useState(null);
-  const messagesEndRef = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { 
+    selectedConversation,
+    isModalOpen,
+    openChat,
+    closeModal,
+    closeChat,
+    setSelectedConversation
+  } = useChat();
+  
+  // Sử dụng selectedConversation từ context
+  const selectedConv = selectedConversation || null;
+  // open state dựa vào isModalOpen từ context, hoặc local state khi user click nút mở
+  const [localOpen, setLocalOpen] = useState(false);
+  // Modal mở khi: isModalOpen = true (từ context) HOẶC localOpen = true (user click nút)
+  const open = isModalOpen || localOpen;
+  
   const currentUser = useSelector(selectCurrentUser);
   const { data: conversationsData, isLoading } = useGetConversationsQuery();
   
-  // Load messages khi có conversation được chọn
-  const { data: messagesData, isLoading: isLoadingMessages } = useGetMessagesQuery(
-    { conversationId: selectedConv?.id },
-    { skip: !selectedConv?.id }
-  );
-  const { data: editHistoryData } = useGetMessageEditHistoryQuery(
-    showEditHistory,
-    { skip: !showEditHistory }
-  );
-  const [uploadChatMedia] = useUploadChatMediaMutation();
+  // Sử dụng useChatLogic khi có conversation được chọn
+  const chatLogic = useChatLogic({ 
+    conversationId: selectedConv?.id, 
+    username: null,
+    onClose: () => closeModal()
+  });
   
-  const messages = useMemo(() => messagesData?.data?.messages || [], [messagesData?.data?.messages]);
+  // Destructure từ useChatLogic
+  const {
+    message, setMessage, typingUsers, showMessageMenu, editingMessage, editContent, setEditContent,
+    showEditHistory, replyingTo, setReplyingTo, selectedMedia, setSelectedMedia, messagesEndRef,
+    isEditing, editHistoryData, displayIsLoading, messages, isLoadingMessages,
+    canMessage, currentUserId, handleTyping, handleSendMessage, handleKeyPress, 
+    handleMessageMenuClick, handleMenuAction, handleSaveEdit, handleCancelEdit, 
+    handleEditKeyPress, handleShowEditHistory, scrollToMessage,
+    handleRecallMessage, handlePinMessage, isLastMessageInConversation, 
+    canEditMessage, getMessageStatusIconWrapper, displayUserInfo, conversationUserInfo, userInfo,
+    selectedConversation: logicSelectedConversation, pinnedMessages, pinnedMessagesExpanded, setPinnedMessagesExpanded,
+  } = chatLogic || {};
   
-  // Scroll to bottom khi có messages mới
+  // Reset localOpen khi vào /chat
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (location.pathname.startsWith('/chat')) {
+      setLocalOpen(false);
     }
-  }, [messages]);
+  }, [location.pathname]);
   
   const conversations = useMemo(() => {
     if (!conversationsData?.data?.conversations) return [];
@@ -115,64 +144,6 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
     });
   }, [conversationsData?.data?.conversations, currentUser?.id]);
 
-  // Handle send message
-  const handleSendMessage = async () => {
-    if ((!message.trim() && selectedMedia.length === 0) || !selectedConv?.id) return;
-    
-    const messageContent = message.trim();
-    const mediaToSend = selectedMedia;
-    
-    setMessage("");
-    setSelectedMedia([]);
-
-    try {
-      if (mediaToSend.length > 0) {
-        const files = mediaToSend.map(m => m.file);
-        const res = await uploadChatMedia({ conversationId: selectedConv.id, files }).unwrap();
-        const uploaded = res?.data?.files || [];
-        uploaded.forEach((u, idx) => {
-          socketService.socket.emit("chat:send_message", {
-            conversationId: selectedConv.id,
-            content: idx === 0 ? messageContent : null,
-            type: u.type,
-            mediaUrl: u.url,
-            mediaType: u.mediaType,
-            replyToId: null,
-          });
-        });
-      } else {
-        socketService.socket.emit("chat:send_message", {
-          conversationId: selectedConv.id,
-          content: messageContent,
-          type: "TEXT",
-          replyToId: null,
-        });
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessage(messageContent);
-      setSelectedMedia(mediaToSend);
-    }
-  };
-
-  // Handle typing
-  const handleTyping = () => {
-    if (selectedConv?.id) {
-      socketService.setTyping(selectedConv.id, true);
-      setTimeout(() => {
-        socketService.setTyping(selectedConv.id, false);
-      }, 1000);
-    }
-  };
-
-  // Handle key press
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
   // Get conversation name for selected conversation
   const getSelectedConvName = () => {
     if (!selectedConv) return "";
@@ -186,19 +157,28 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
     }
   };
 
-  // Check if message is last in conversation
-  const isLastMessageInConversation = (message) => {
-    if (!messages || messages.length === 0) {
-      return false;
-    }
-    return messages[messages.length - 1]?.id === message?.id;
-  };
+  // Ẩn component nếu đang ở trang /chat
+  if (location.pathname.startsWith('/chat')) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-10 right-10 z-50">
       {/* Nút mở khung chat */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // Nếu đang mở thì đóng, nếu đang đóng thì mở
+          if (open) {
+            // Đóng modal: clear cả localOpen và context modal
+            setLocalOpen(false);
+            if (isModalOpen) {
+              closeChat(); // Đóng hoàn toàn (clear cả conversation)
+            }
+          } else {
+            // Mở modal với localOpen
+            setLocalOpen(true);
+          }
+        }}
         className="flex items-center justify-between w-64 px-6 py-4 bg-white border border-gray-100 shadow-xl rounded-full hover:shadow-2xl transition-all duration-200 focus:outline-none"
       >
         {/* Icon + Label */}
@@ -234,31 +214,61 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
       </button>
 
       {/* Khung tin nhắn */}
-      {open && (
-        <div className="fixed bottom-4 right-4 left-4 top-auto w-auto h-[70vh] max-h-[500px] bg-white rounded-xl shadow-2xl flex flex-col sm:bottom-10 sm:right-10 sm:left-auto sm:w-[320px] sm:h-[500px]">
+        {open && (
+          <div className="fixed bottom-4 right-4 left-4 top-auto w-auto h-[70vh] max-h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:bottom-10 sm:right-10 sm:left-auto sm:w-[350px] sm:h-[500px]">
           {/* Header */}
           <div className="flex items-center justify-between p-2.5 border-b">
             {selectedConv ? (
               <>
                 <button
-                  onClick={() => setSelectedConv(null)}
+                  onClick={() => {
+                    setSelectedConversation(null);
+                  }}
                   className="p-1 rounded-full hover:bg-gray-100 mr-1.5"
                 >
                   <ArrowLeft className="w-4 h-4 text-gray-600" />
                 </button>
-                <h2 className="text-base font-semibold flex-1 truncate">{getSelectedConvName()}</h2>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {/* Avatar */}
+                  {selectedConv.type === 'GROUP' ? (
+                    <ConversationAvatars members={selectedConv.members} size={32} borderWidth={1} />
+                  ) : (
+                    (() => {
+                      const otherMember = selectedConv.members?.find(member => 
+                        member.user.id !== currentUser?.id
+                      );
+                      return (
+                        <img
+                          src={otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                          alt={otherMember?.user?.username}
+                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                        />
+                      );
+                    })()
+                  )}
+                  <h2 className="text-base font-semibold flex-1 truncate">{getSelectedConvName()}</h2>
+                </div>
               </>
             ) : (
-            <h2 className="text-base font-semibold">Tin nhắn</h2>
+            <h2 className="text-base font-semibold mx-2">Tin nhắn</h2>
             )}
             <div className="flex items-center gap-1.5">
-              <button className="p-1 rounded-full hover:bg-gray-100">
-                <Maximize className="w-4 h-4 text-gray-600" />
-              </button>
+              {selectedConv && (
+                <button 
+                  onClick={() => {
+                    // Navigate đến /chat với conversation đang chọn
+                    navigate(`/chat/${selectedConv.id}`);
+                  }}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                  title="Mở trong trang chat"
+                >
+                  <Maximize className="w-4 h-4 text-gray-600" />
+                </button>
+              )}
               <button
                 onClick={() => {
-                  setOpen(false);
-                  setSelectedConv(null);
+                  setLocalOpen(false);
+                  closeChat();
                 }}
                 className="p-1 rounded-full hover:bg-gray-100"
               >
@@ -268,79 +278,147 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
           </div>
 
           {/* Content Area */}
-          {selectedConv ? (
+          {selectedConv && chatLogic ? (
             <>
-              {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-2.5 space-y-0.5">
-                {isLoadingMessages ? (
-                  <div className="space-y-1.5">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="flex space-x-1.5">
-                        <div className="w-6 h-6 rounded-full bg-gray-200 animate-pulse"></div>
-                        <div className="flex-1 space-y-1.5">
-                          <div className="h-3 w-12 bg-gray-200 animate-pulse rounded"></div>
-                          <div className="h-8 w-36 bg-gray-200 animate-pulse rounded-lg"></div>
+              {/* Loading state */}
+              {displayIsLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-sm text-gray-500">Đang tải...</div>
+                </div>
+              ) : (
+                <div className="flex flex-col flex-1 min-h-0">
+                  {/* Messages Area */}
+                  <div className="flex-1 overflow-y-auto min-h-0">
+                    {/* Pinned Messages Bar - Hiển thị trên cùng */}
+                    {selectedConv && pinnedMessages && (
+                      <PinnedMessagesBar
+                        pinnedMessages={pinnedMessages}
+                        isExpanded={pinnedMessagesExpanded}
+                        onToggle={() => setPinnedMessagesExpanded && setPinnedMessagesExpanded(!pinnedMessagesExpanded)}
+                        onMessageClick={scrollToMessage}
+                      />
+                    )}
+                    
+                    {/* User Profile Card - Compact version for modal */}
+                    <div className="px-2 pt-2 pb-1">
+                      <ChatProfileCard
+                        userInfo={displayUserInfo?.user || conversationUserInfo || userInfo}
+                        conversationType={(logicSelectedConversation || selectedConv)?.type}
+                        members={(logicSelectedConversation || selectedConv)?.members || []}
+                        conversationName={(logicSelectedConversation || selectedConv)?.name || ''}
+                        onViewProfile={() => {
+                          const targetUsername = conversationUserInfo?.username || userInfo?.username || displayUserInfo?.user?.username;
+                          if (targetUsername) {
+                            navigate(`/${targetUsername}`);
+                          }
+                        }}
+                        onViewMembers={() => {}}
+                        compact={true}
+                      />
+                    </div>
+                    
+                    {/* Messages List */}
+                    <div className="p-2 space-y-0.5" style={{ fontSize: '0.875rem' }}>
+                      {isLoadingMessages ? (
+                        <div className="space-y-1.5">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="flex space-x-1.5">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 animate-pulse"></div>
+                              <div className="flex-1 space-y-1.5">
+                                <div className="h-3 w-12 bg-gray-200 animate-pulse rounded"></div>
+                                <div className="h-8 w-36 bg-gray-200 animate-pulse rounded-lg"></div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
+                      ) : messages && messages.length > 0 ? (
+                        <>
+                          {messages.map((msg, index) => {
+                          const isOwnMessage = msg.senderId === currentUserId;
+                          const prevMessage = index > 0 ? messages[index - 1] : null;
+                          const showAvatar = !prevMessage || prevMessage.senderId !== msg.senderId;
+                          const showDateSeparator = index === 0 || 
+                            new Date(msg.createdAt).toDateString() !== new Date(prevMessage.createdAt).toDateString();
+                          
+                          return (
+                            <div key={msg.id}>
+                              {/* Date Separator */}
+                              {showDateSeparator && (
+                                <div className="py-1">
+                                  <DateSeparator date={msg.createdAt} />
+                                </div>
+                              )}
+                              
+                              {/* System Message */}
+                              {msg.isSystem ? (
+                                <SystemMessage content={msg.content} />
+                              ) : (
+                                <MessageItem
+                                  message={msg}
+                                  isOwnMessage={isOwnMessage}
+                                  showAvatar={showAvatar}
+                                  currentUserId={currentUserId}
+                                  isLastMessageInConversation={isLastMessageInConversation}
+                                  canEditMessage={canEditMessage}
+                                  onMenuAction={handleMenuAction}
+                                  onShowEditHistory={handleShowEditHistory}
+                                  onMessageMenuClick={handleMessageMenuClick}
+                                  showMessageMenu={showMessageMenu}
+                                  editingMessage={editingMessage}
+                                  editContent={editContent}
+                                  setEditContent={setEditContent}
+                                  onSaveEdit={handleSaveEdit}
+                                  onCancelEdit={handleCancelEdit}
+                                  onEditKeyPress={handleEditKeyPress}
+                                  isEditing={isEditing}
+                                  getMessageStatusIcon={getMessageStatusIconWrapper}
+                                  onScrollToMessage={scrollToMessage}
+                                  onRecallMessage={handleRecallMessage}
+                                  onPinMessage={handlePinMessage}
+                                  editHistoryData={showEditHistory === msg.id ? editHistoryData : null}
+                                  compact={true}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                        
+                        {/* Typing indicator */}
+                        <TypingIndicator typingUsers={typingUsers} />
+                        
+                        {/* Scroll anchor */}
+                        <div ref={messagesEndRef} />
+                      </>
+                    ) : (
+                      <EmptyMessagesState />
+                    )}
+                    </div>
                   </div>
-                ) : messages.length > 0 ? (
-                  <>
-                    {messages.map((msg, index) => {
-                      const isOwnMessage = msg.senderId === currentUser?.id;
-                      const showAvatar = index === 0 || messages[index - 1]?.senderId !== msg.senderId;
-                      
-                      return (
-                        <div key={msg.id} className={`scale-75 ${isOwnMessage ? 'origin-right' : 'origin-left'}`}>
-                          <MessageItem
-                            message={msg}
-                            isOwnMessage={isOwnMessage}
-                            showAvatar={showAvatar}
-                            currentUserId={currentUser?.id}
-                            isLastMessageInConversation={isLastMessageInConversation}
-                            canEditMessage={() => false}
-                            onMenuAction={() => {}}
-                            onShowEditHistory={(messageId) => setShowEditHistory(messageId)}
-                            onMessageMenuClick={() => {}}
-                            showMessageMenu={null}
-                            editingMessage={null}
-                            editContent=""
-                            setEditContent={() => {}}
-                            onSaveEdit={() => {}}
-                            onCancelEdit={() => {}}
-                            onEditKeyPress={() => {}}
-                            isEditing={false}
-                            getMessageStatusIcon={() => null}
-                            onScrollToMessage={() => {}}
-                            onRecallMessage={() => {}}
-                            onPinMessage={() => {}}
-                            editHistoryData={showEditHistory === msg.id ? editHistoryData : null}
-                          />
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </>
-                ) : (
-                  <div className="text-center py-6 text-gray-500 text-xs">
-                    Chưa có tin nhắn nào
-                  </div>
-                )}
-              </div>
 
-              {/* Message Input */}
-              <MessageInput
-                message={message}
-                setMessage={setMessage}
-                onTyping={handleTyping}
-                onKeyPress={handleKeyPress}
-                onSendMessage={handleSendMessage}
-                replyingTo={null}
-                selectedConversation={selectedConv}
-                selectedMedia={selectedMedia}
-                onMediaSelect={setSelectedMedia}
-                canMessage={{ allowed: true }}
-              />
+                  {/* Reply Preview */}
+                  {replyingTo && (
+                    <ReplyPreview 
+                      replyingTo={replyingTo} 
+                      onCancelReply={() => setReplyingTo(null)} 
+                    />
+                  )}
+
+                  {/* Message Input - Dính sát dưới */}
+                  <MessageInput
+                    message={message}
+                    setMessage={setMessage}
+                    onTyping={handleTyping}
+                    onKeyPress={handleKeyPress}
+                    onSendMessage={handleSendMessage}
+                    replyingTo={replyingTo}
+                    selectedConversation={selectedConv}
+                    selectedMedia={selectedMedia}
+                    onMediaSelect={setSelectedMedia}
+                    canMessage={canMessage}
+                    compact={true}
+                  />
+                </div>
+              )}
             </>
             
           ) : (
@@ -367,29 +445,40 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
                     key={msg.id}
                     onClick={() => {
                       if (msg.conversation) {
-                        setSelectedConv(msg.conversation);
+                        const conversation = msg.conversation;
+                        // Mở chat với conversation
+                        openChat({ 
+                          conversationId: conversation.id, 
+                          conversation: conversation 
+                        });
+                        setLocalOpen(true);
+                        
                         if (onSelectConversation) {
-                          onSelectConversation(msg.conversation);
+                          onSelectConversation(conversation);
                         }
                       }
                     }}
-                className="flex items-center justify-between p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer"
+                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer"
               >
                 <div className="flex items-center space-x-2">
-                  <img
-                    src={msg.avatar}
-                    alt={msg.name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
+                  {msg.conversation?.type === 'GROUP' ? (
+                    <ConversationAvatars members={msg.conversation.members} size={40} borderWidth={1} />
+                  ) : (
+                    <img
+                      src={msg.avatar}
+                      alt={msg.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  )}
                   <div>
-                    <p className="font-medium text-xs">{msg.name}</p>
-                        <p className="text-[10px] text-gray-500 truncate w-[160px]">
+                    <p className="font-medium text-sm">{msg.name}</p>
+                        <p className="text-xs text-gray-500 truncate w-[180px]">
                       {msg.message}
                     </p>
                   </div>
                 </div>
                     {msg.time && (
-                <p className="text-[10px] text-gray-400">{msg.time}</p>
+                <p className="text-xs text-gray-400">{msg.time}</p>
                     )}
               </div>
                 ))
@@ -400,11 +489,13 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
       )}
 
       {/* Edit History Modal */}
-      <EditHistoryModal
-        showEditHistory={showEditHistory}
-        onClose={() => setShowEditHistory(null)}
-        editHistoryData={editHistoryData}
-      />
+      {chatLogic && (
+        <EditHistoryModal
+          showEditHistory={showEditHistory}
+          onClose={() => handleShowEditHistory && handleShowEditHistory(null)}
+          editHistoryData={editHistoryData}
+        />
+      )}
     </div>
   );
 };

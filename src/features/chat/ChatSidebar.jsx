@@ -1,20 +1,26 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Search, Edit, X } from "lucide-react";
+import { Search, Users, X } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useGetConversationsQuery } from "./chatApi";
 import { selectCurrentUser } from "../auth/authSlice";
 import socketService from "../../services/socket";
 import { formatOfflineTime } from "../../utils/formatTimeAgo";
 import CreateGroupModal from "./components/CreateGroupModal";
-
+import { useChat } from "../../contexts/ChatContext";
+import { useLocation } from "react-router-dom";
+import ConversationAvatars from "../../components/common/ConversationAvatars";
 const ChatSidebar = ({
   selectedConversation,
   onSelectConversation,
-  searchQuery,
-  onSearchChange,
 }) => {
   // Lấy current user từ Redux store
   const currentUser = useSelector(selectCurrentUser);
+  const location = useLocation();
+  const { openChat } = useChat();
+  const isOnChatPage = location.pathname.startsWith('/chat');
+  
+  // Local state cho search query
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Lấy danh sách conversations từ API
   const { data: conversationsData, isLoading, refetch } = useGetConversationsQuery();
@@ -162,7 +168,7 @@ const ChatSidebar = ({
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
           title="Tạo nhóm chat"
         >
-          <Edit className="w-7 h-7 text-gray-600" />
+          <Users className="w-7 h-7 text-gray-600" />
         </button>
       </div>
 
@@ -174,12 +180,12 @@ const ChatSidebar = ({
             type="text"
             placeholder="Tìm kiếm"
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full py-2 pl-10 rounded-full bg-gray-100 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full py-2 pl-10 rounded-full bg-gray-100 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0"
           />
           {searchQuery && (
             <button
-              onClick={() => onSearchChange('')}
+              onClick={() => setSearchQuery('')}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               title="Xóa"
             >
@@ -247,38 +253,23 @@ const ChatSidebar = ({
                       : "hover:bg-gray-100"
                   }`}
                   onClick={() => {
-                    onSelectConversation(conv);
+                    if (isOnChatPage) {
+                      // Ở trang chat → Gọi onSelectConversation (sẽ navigate)
+                      onSelectConversation(conv);
+                    } else {
+                      // Ở trang khác → Mở modal
+                      openChat({ 
+                        conversationId: conv.id, 
+                        conversation: conv 
+                      });
+                    }
                   }}
                 >
                   {/* Avatar */}
                   <div className="relative">
                       {conv.type === 'GROUP' ? (
                         // Group avatar - hiển thị avatar của 3 thành viên thành hình tam giác
-                        <div className="w-12 h-12 relative">
-                          {conv.members
-                            ?.slice(0, 3)
-                            ?.map((member, index) => {
-                              const positions = [
-                                'absolute top-0 left-1/2 transform -translate-x-1/2 z-1', // Avatar 1: trên cùng, giữa
-                                'absolute bottom-0 left-0 z-10', // Avatar 2: dưới trái, đè lên avatar 1
-                                'absolute bottom-0 right-0 z-20'  // Avatar 3: dưới phải, đè lên avatar 1
-                              ];
-                              
-                              return (
-                                <div
-                                  key={member.user.id}
-                                  className={`w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-md ${positions[index]}`}
-                                >
-                                  <img
-                                    src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                                    alt={member.user.username}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              );
-                            })}
-                          
-                        </div>
+                        <ConversationAvatars members={conv.members} />
                     ) : (
                       // Direct chat avatar
                       <img

@@ -8,6 +8,7 @@ import './styles/sidebar.css';
 import InstagramSpinner from './components/common/InstagramSpinner';
 import NotificationToast from './components/common/NotificationToast';
 import { useSocket } from './hooks/useSocket';
+
 function App() {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);

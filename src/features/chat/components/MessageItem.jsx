@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   MoreHorizontal,
   Edit,
@@ -30,14 +30,41 @@ const MessageItem = ({
   onScrollToMessage,
   onRecallMessage,
   onPinMessage,
+  compact = false, // Prop để điều chỉnh kích thước cho modal
 }) => {
+  const menuButtonRef = useRef(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, right: 0 });
+
+  // Cập nhật vị trí modal khi mở
+  useEffect(() => {
+    if (showMessageMenu === message.id && menuButtonRef.current) {
+      const updatePosition = () => {
+        const rect = menuButtonRef.current.getBoundingClientRect();
+        setMenuPosition({
+          top: rect.top,
+          left: rect.left,
+          right: window.innerWidth - rect.right,
+        });
+      };
+      
+      updatePosition();
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+      
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [showMessageMenu, message.id]);
+
   return (
     <div className="w-full">
       {/* Reply indicator - hiển thị phía trên tin nhắn */}
       {message.replyTo && (
         <div className={`mb-1 ${isOwnMessage ? "text-right" : "text-left"}`}>
           {/* Label */}
-          <div className={`text-xs text-gray-500 mb-1 ${isOwnMessage ? "pr-4 pl-4" : "pr-4 pl-14 sm:pl-16"}`}>
+          <div className={`${compact ? 'text-[10px]' : 'text-xs'} text-gray-500 mb-1 ${isOwnMessage ? (compact ? "pr-2 pl-2" : "pr-4 pl-4") : (compact ? "pr-2 pl-10" : "pr-4 pl-14 sm:pl-16")}`}>
             {message.senderId === currentUserId 
               ? (message.replyTo.senderId === currentUserId 
                   ? "Bạn đã trả lời chính mình" 
@@ -51,9 +78,9 @@ const MessageItem = ({
           </div>
           
           {/* Tin nhắn gốc được reply */}
-          <div className={`${isOwnMessage ? "flex justify-end pr-12" : "flex justify-start pl-14 sm:pl-16"}`}>
+          <div className={`${isOwnMessage ? (compact ? "flex justify-end pr-8" : "flex justify-end pr-12") : (compact ? "flex justify-start pl-10" : "flex justify-start pl-14 sm:pl-16")}`}>
             <div 
-              className={`px-3 py-2 rounded-lg text-sm max-w-xs cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-600`}
+              className={`${compact ? 'px-2 py-1' : 'px-3 py-2'} rounded-lg ${compact ? 'text-xs' : 'text-sm'} ${compact ? 'max-w-[160px]' : 'max-w-xs'} cursor-pointer hover:opacity-80 transition-opacity bg-gray-100 text-gray-600`}
               onClick={() => onScrollToMessage && onScrollToMessage(message.replyTo.id)}
             >
               <p className="truncate">{message.replyTo.content}</p>
@@ -65,18 +92,18 @@ const MessageItem = ({
       <div
         className={`flex ${
           isOwnMessage
-            ? "justify-end mr-4"
+            ? compact ? "justify-end mr-2" : "justify-end mr-4"
             : "justify-start"
         } group relative`}
       >
         <div
-          className={`flex max-w-xs lg:max-w-md ${
+          className={`flex ${compact ? 'max-w-[200px]' : 'max-w-xs lg:max-w-md'} ${
             isOwnMessage ? "flex-row-reverse" : "flex-row"
-          } items-end space-x-2`}
+          } items-end ${compact ? 'space-x-1.5' : 'space-x-2'}`}
         >
           {/* Avatar */}
           {!isOwnMessage && showAvatar && (
-            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+            <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'} rounded-full overflow-hidden flex-shrink-0`}>
               {message.sender?.avatarUrl ? (
                 <img
                   src={message.sender.avatarUrl}
@@ -100,17 +127,17 @@ const MessageItem = ({
 
           {/* Spacer cho tin nhắn không có avatar */}
           {!isOwnMessage && !showAvatar && (
-            <div className="w-8 h-8"></div>
+            <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'}`}></div>
           )}
 
           {/* Message bubble */}
           <div
             className={`relative ${
               message.isRecalled 
-                ? "px-5 py-2"
+                ? compact ? "px-3 py-1.5" : "px-5 py-2"
                 : message.mediaUrl && !message.content 
                   ? "p-0 bg-transparent" 
-                  : "px-5 py-2"
+                  : compact ? "px-3 py-1.5" : "px-5 py-2"
             } rounded-2xl ${
               message.isRecalled
                 ? isOwnMessage
@@ -135,11 +162,11 @@ const MessageItem = ({
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   onKeyDown={onEditKeyPress}
-                  className="w-full bg-transparent text-sm leading-relaxed resize-none focus:outline-none"
+                  className={`w-full bg-transparent ${compact ? 'text-xs' : 'text-sm'} leading-relaxed resize-none focus:outline-none`}
                   rows={Math.max(1, editContent.split("\n").length)}
                   autoFocus
                 />
-                <div className="flex gap-2 text-xs">
+                <div className={`flex gap-2 ${compact ? 'text-[10px]' : 'text-xs'}`}>
                   <button
                     onClick={onSaveEdit}
                     disabled={isEditing || !editContent.trim()}
@@ -157,7 +184,7 @@ const MessageItem = ({
               </div>
             ) : (
               // Normal mode
-              <div className="text-sm leading-relaxed flex items-center flex-col space-y-2">
+              <div className={`${compact ? 'text-xs' : 'text-sm'} leading-relaxed flex items-center flex-col ${compact ? 'space-y-1' : 'space-y-2'}`}>
                 {message.isRecalled ? (
                   <span className={`text-[13px] italic ${
                     isOwnMessage
@@ -174,13 +201,13 @@ const MessageItem = ({
                           <img 
                             src={message.mediaUrl} 
                             alt="Media" 
-                            className="w-auto h-auto max-w-xs max-h-64 rounded-lg object-contain"
+                            className={`w-auto h-auto ${compact ? 'max-w-[180px] max-h-[180px]' : 'max-w-xs max-h-64'} rounded-lg object-contain`}
                           />
                         ) : message.type === 'VIDEO' ? (
                           <video 
                             src={message.mediaUrl} 
                             controls
-                            className="w-auto h-auto max-w-xs max-h-64 rounded-lg object-contain"
+                            className={`w-auto h-auto ${compact ? 'max-w-[180px] max-h-[180px]' : 'max-w-xs max-h-64'} rounded-lg object-contain`}
                           />
                         ) : null}
                       </div>
@@ -210,83 +237,118 @@ const MessageItem = ({
 
             {/* Hover menu button */}
             <button
-              onClick={(e) => onMessageMenuClick(message.id, e)}
-              className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-black/10"
+              ref={menuButtonRef}
+              onClick={(e) => {
+                if (e) e.stopPropagation();
+                // Lấy vị trí button ngay khi click
+                if (menuButtonRef.current) {
+                  const rect = menuButtonRef.current.getBoundingClientRect();
+                  setMenuPosition({
+                    top: rect.top,
+                    left: rect.left,
+                    right: window.innerWidth - rect.right,
+                  });
+                }
+                onMessageMenuClick(message.id, e);
+              }}
+              className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-black/10 pointer-events-auto"
               style={{
                 [isOwnMessage ? "left" : "right"]: "-30px",
+                visibility: showMessageMenu === message.id ? 'visible' : 'inherit',
               }}
             >
               <MoreHorizontal className="w-4 h-4 text-gray-500" />
             </button>
 
-            {/* Context Menu */}
-            {showMessageMenu === message.id && (
+            {/* Context Menu - xuất hiện từ nút dấu 3 chấm, phía trên */}
+            {showMessageMenu === message.id && menuPosition.top > 0 && (
               <div
-                className="absolute z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[160px]"
+                className="fixed z-50 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden min-w-[180px]"
                 style={{
-                  bottom: "100%",
-                  marginBottom: "8px",
-                  [isOwnMessage ? "left" : "right"]: "-160px",
+                  top: `${menuPosition.top - 8}px`,
+                  [isOwnMessage ? "right" : "left"]: isOwnMessage 
+                    ? `${menuPosition.right}px`
+                    : `${menuPosition.left}px`,
+                  transform: "translateY(-100%)",
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Time header */}
-                <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-100">
+                {/* Time header - chỉ hiển thị thời gian */}
+                <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">
                   {new Date(message.createdAt).toLocaleTimeString("vi-VN", {
                     hour: "2-digit",
                     minute: "2-digit",
-                    weekday: "short",
                   })}
                 </div>
 
                 {/* Menu items */}
-                {canEditMessage(message) && !message.mediaUrl && message.content && (
+                <div className="py-1 px-1.5">
+                  {message.content && (
+                    <button
+                      onClick={() => {
+                        onMenuAction("copy", message.id);
+                        onMessageMenuClick(null);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center justify-between transition-colors"
+                    >
+                      <span>Sao chép</span>
+                      <Copy className="w-4 h-4 text-gray-500" />
+                    </button>
+                  )}
+
+                  {canEditMessage(message) && !message.mediaUrl && message.content && (
+                    <button
+                      onClick={() => {
+                        onMenuAction("edit", message.id);
+                        onMessageMenuClick(null);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center justify-between transition-colors"
+                    >
+                      <span>Chỉnh sửa</span>
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </button>
+                  )}
+
                   <button
-                    onClick={() => onMenuAction("edit", message.id)}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
+                    onClick={() => {
+                      onMenuAction("reply", message.id);
+                      onMessageMenuClick(null);
+                    }}
+                    className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center justify-between transition-colors"
                   >
-                    <Edit className="w-4 h-4 text-gray-600" />
-                    Chỉnh sửa
+                    <span>Trả lời</span>
+                    <Reply className="w-4 h-4 text-gray-500" />
                   </button>
-                )}
 
-                <button
-                  onClick={() => onMenuAction("reply", message.id)}
-                  className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Reply className="w-4 h-4 text-gray-600" />
-                  Trả lời
-                </button>
-
-                {message.content && (
                   <button
-                    onClick={() => onMenuAction("copy", message.id)}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
+                    onClick={() => {
+                      onPinMessage && onPinMessage(message.id);
+                      onMessageMenuClick(null);
+                    }}
+                    className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center justify-between transition-colors"
                   >
-                    <Copy className="w-4 h-4 text-gray-600" />
-                    Sao chép
+                    <span>{message.pinnedIn && message.pinnedIn.length > 0 ? 'Bỏ ghim' : 'Ghim tin nhắn'}</span>
+                    <Pin className={`w-4 h-4 ${message.pinnedIn && message.pinnedIn.length > 0 ? 'text-blue-500 fill-blue-500' : 'text-gray-500'}`} />
                   </button>
-                )}
+                </div>
 
-                <button
-                  onClick={() => onPinMessage && onPinMessage(message.id)}
-                  className="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <Pin className={`w-4 h-4 ${message.pinnedIn && message.pinnedIn.length > 0 ? 'text-blue-500 fill-blue-500' : 'text-gray-600'}`} />
-                  {message.pinnedIn && message.pinnedIn.length > 0 ? 'Bỏ ghim' : 'Ghim tin nhắn'}
-                </button>
-
-                {/* Separator */}
-                <div className="border-t border-gray-100 my-1"></div>
-
+                {/* Separator và nút Thu hồi */}
                 {isOwnMessage && !message.isRecalled && (
-                  <button
-                    onClick={() => onRecallMessage && onRecallMessage(message.id)}
-                    className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 flex items-center gap-3"
-                  >
-                    <Undo className="w-4 h-4 text-red-500" />
-                    Thu hồi
-                  </button>
+                  <>
+                    <div className="border-t border-gray-100 mx-1.5"></div>
+                    <div className="px-1.5 py-1">
+                      <button
+                        onClick={() => {
+                          onRecallMessage && onRecallMessage(message.id);
+                          onMessageMenuClick(null);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-red-500 hover:bg-red-50 flex items-center justify-between bg-red-50/50 transition-colors"
+                      >
+                        <span>Thu hồi</span>
+                        <Undo className="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -296,14 +358,14 @@ const MessageItem = ({
           {isOwnMessage &&
             !(message.updatedAt && message.updatedAt !== message.createdAt) &&
             isLastMessageInConversation(message) && (
-              <div className="absolute -bottom-1 -right-1 p-1 bg-white border border-gray-200 rounded-full shadow-sm">
-                {getMessageStatusIcon(message)}
+              <div className={`absolute -bottom-1 -right-1 ${compact ? 'p-0.5' : 'p-1'} bg-white border border-gray-200 rounded-full shadow-sm`}>
+                {getMessageStatusIcon ? getMessageStatusIcon(message, compact) : null}
               </div>
             )}
 
           {/* Spacer for alignment */}
           {isOwnMessage && showAvatar && (
-            <div className="w-8 h-8"></div>
+            <div className={`${compact ? 'w-6 h-6' : 'w-8 h-8'}`}></div>
           )}
         </div>
       </div>

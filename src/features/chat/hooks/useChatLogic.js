@@ -408,7 +408,9 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
   };
 
   const handleMessageMenuClick = (messageId, event) => {
-    event.stopPropagation();
+    if (event) {
+      event.stopPropagation();
+    }
     setShowMessageMenu(showMessageMenu === messageId ? null : messageId);
   };
 
@@ -595,12 +597,13 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
   };
 
   // Get message status icon using utility function
-  const getMessageStatusIconWrapper = (message) => {
+  const getMessageStatusIconWrapper = (message, compact = false) => {
     return getMessageStatusIcon({
       message,
       currentUserId,
       selectedConversation,
       isLastMessageInConversation,
+      compact,
     });
   };
 

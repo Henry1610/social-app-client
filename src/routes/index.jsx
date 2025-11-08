@@ -18,6 +18,8 @@ import AdminRoutes from "./AdminRoutes";
 import Layout from "../components/layouts/Layout";
 import AdminLayout from "../components/layouts/AdminLayout";
 import AuthLayout from "../components/layouts/AuthLayout";
+import FloatingDirectMessage from "../components/common/FloatingDirectMessage";
+import { ChatProvider } from "../contexts/ChatContext";
 
 const AppRoutes = () => {
   const dispatch = useDispatch();
@@ -50,49 +52,58 @@ const AppRoutes = () => {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AuthLayout />}>
-          {PublicRoutes.map((route, index) => {
-            const Page = route.component;
-            return <Route key={index} path={route.path} element={<Page />} />;
-          })}
-        </Route>
+      <ChatProvider>
+        <Routes>
+          <Route element={<AuthLayout />}>
+            {PublicRoutes.map((route, index) => {
+              const Page = route.component;
+              return <Route key={index} path={route.path} element={<Page />} />;
+            })}
+          </Route>
 
-        <Route
-          element={
-            <ProtectedRoute requiredRole="user">
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          {UserRoutes.map((route, index) => {
-            const Page = route.component;
-            return <Route key={index} path={route.path} element={<Page />} />;
-          })}
-        </Route>
+          <Route
+            element={
+              <ProtectedRoute requiredRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {UserRoutes.map((route, index) => {
+              const Page = route.component;
+              return <Route key={index} path={route.path} element={<Page />} />;
+            })}
+          </Route>
 
-        <Route
-          element={
-            <ProtectedRoute requiredRole="user">
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          {UserRoutes.map((route, index) => {
-            const Page = route.component;
-            return (
-              <Route key={index} path={route.path} element={<Page />}>
-                {route.children?.map((child, i) => {
-                  const ChildPage = child.component;
-                  return (
-                    <Route key={i} path={child.path} element={<ChildPage />} />
-                  );
-                })}
-              </Route>
-            );
-          })}
-        </Route>
-      </Routes>
+          <Route
+            element={
+              <ProtectedRoute requiredRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {UserRoutes.map((route, index) => {
+              const Page = route.component;
+              return (
+                <Route key={index} path={route.path} element={<Page />}>
+                  {route.children?.map((child, i) => {
+                    const ChildPage = child.component;
+                    return (
+                      <Route key={i} path={child.path} element={<ChildPage />} />
+                    );
+                  })}
+                </Route>
+              );
+            })}
+          </Route>
+        </Routes>
+        
+        {/* Render FloatingDirectMessage bên trong Router để có thể dùng useLocation */}
+        {currentUser && (
+          <FloatingDirectMessage 
+            avatarUrl={currentUser.avatarUrl } 
+          />
+        )}
+      </ChatProvider>
     </BrowserRouter>
   );
 };

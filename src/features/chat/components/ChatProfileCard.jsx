@@ -1,4 +1,5 @@
 import React from "react";
+import ConversationAvatars from "../../../components/common/ConversationAvatars";
 
 /**
  * ChatProfileCard - Component hiển thị avatar và thông tin user/conversation ở đầu chat
@@ -17,9 +18,58 @@ const ChatProfileCard = ({
   conversationName = '',
   onViewProfile,
   onViewMembers,
+  compact = false,
 }) => {
   const isGroup = conversationType === 'GROUP';
 
+  if (compact) {
+    // Compact version for modal
+    return (
+      <div className="flex-shrink-0 py-2">
+        <div className="flex flex-col items-center text-center space-y-2">
+          {/* Avatar */}
+          <div className="relative">
+            {isGroup ? (
+              <ConversationAvatars 
+                members={members} 
+                size={compact ? 48 : 80} 
+                borderWidth={compact ? 2 : 4} 
+              />
+            ) : (
+              <img
+                src={userInfo?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                alt={userInfo?.username}
+                className={`${compact ? 'w-12 h-12 border-2' : 'w-20 h-20 border-4'} rounded-full object-cover border-gray-100`}
+              />
+            )}
+          </div>
+
+          {/* User Info */}
+          <div className="space-y-0.5">
+            <h3 className={`${compact ? 'text-sm' : 'text-lg'} font-semibold text-gray-900 truncate max-w-full px-2`}>
+              {isGroup ? conversationName : userInfo?.fullName || userInfo?.username}
+            </h3>
+            <p className={`${compact ? 'text-xs' : 'text-sm'} text-gray-500 flex items-center justify-center gap-1`}>
+              {isGroup 
+                ? `${members?.length || 0} thành viên`
+                : `@${userInfo?.username}`
+              }
+            </p>
+          </div>
+
+          {/* Action Button - Compact version */}
+          <button 
+            onClick={isGroup ? onViewMembers : onViewProfile}
+            className={`${compact ? 'text-xs py-1.5 px-3' : 'text-sm py-2 px-4'} bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg font-medium transition-colors mt-1`}
+          >
+            {isGroup ? 'Xem thông tin nhóm' : 'Xem trang cá nhân'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full version for full page
   return (
     <div className="flex-shrink-0 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-sm mx-auto">
@@ -27,41 +77,15 @@ const ChatProfileCard = ({
           {/* Avatar */}
           <div className="relative">
             {isGroup ? (
-              // Group avatar - hiển thị avatar của 3 thành viên thành hình tam giác
-              <div className="w-20 h-20 relative">
-                {members
-                  ?.slice(0, 3)
-                  ?.map((member, index) => {
-                    // Vị trí tam giác đè lên nhau
-                    const positions = [
-                      'absolute top-0 left-1/2 transform -translate-x-1/2 z-10', // Avatar 1: trên cùng, giữa
-                      'absolute bottom-0 left-0 z-20', // Avatar 2: dưới trái, đè lên avatar 1
-                      'absolute bottom-0 right-0 z-30'  // Avatar 3: dưới phải, đè lên avatar 1
-                    ];
-                    
-                    return (
-                      <div
-                        key={member.user.id}
-                        className={`w-12 h-12 rounded-full overflow-hidden border-4 border-white shadow-lg ${positions[index]}`}
-                      >
-                        <img
-                          src={member.user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                          alt={member.user.username}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    );
-                  })}
-                {members?.length > 3 && (
-                  <div className="absolute bottom-0 right-0 w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-lg text-gray-600 border-4 border-white shadow-lg z-40">
-                    +
-                  </div>
-                )}
-              </div>
+              <ConversationAvatars 
+                members={members} 
+                size={80} 
+                borderWidth={4} 
+              />
             ) : (
               // Direct chat avatar
               <img
-                src={userInfo?.avatarUrl}
+                src={userInfo?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
                 alt={userInfo?.username}
                 className="w-20 h-20 rounded-full object-cover border-4 border-gray-100"
               />

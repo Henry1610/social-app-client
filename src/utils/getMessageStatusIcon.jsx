@@ -8,6 +8,7 @@ import { Check, CheckCheck } from "lucide-react";
  * @param {string} params.currentUserId - ID của user hiện tại
  * @param {Object} params.selectedConversation - Conversation hiện tại (có thể là GROUP hoặc DIRECT)
  * @param {Function} params.isLastMessageInConversation - Function kiểm tra xem message có phải là message cuối cùng không
+ * @param {boolean} params.compact - Kích thước compact (nhỏ hơn) cho modal
  * @returns {JSX.Element} Icon component
  */
 export const getMessageStatusIcon = ({
@@ -15,15 +16,20 @@ export const getMessageStatusIcon = ({
   currentUserId,
   selectedConversation,
   isLastMessageInConversation,
+  compact = false,
 }) => {
+  const iconSize = compact ? 'w-2.5 h-2.5' : 'w-3 h-3';
+  const avatarSize = compact ? 'w-3 h-3' : 'w-4 h-4';
+  const textSize = compact ? 'text-[9px]' : 'text-xs';
+  
   // Mặc định hiển thị icon SENT nếu không có trạng thái
   if (!message || message.senderId !== currentUserId) {
-    return <Check className="w-3 h-3 text-gray-400" />;
+    return <Check className={`${iconSize} text-gray-400`} />;
   }
 
   // Nếu không có states hoặc không tìm thấy states của người nhận, hiển thị SENT
   if (!message.states || message.states.length === 0) {
-    return <Check className="w-3 h-3 text-gray-400" />;
+    return <Check className={`${iconSize} text-gray-400`} />;
   }
 
   // Xử lý khác nhau cho direct chat và group chat
@@ -47,7 +53,7 @@ export const getMessageStatusIcon = ({
             return (
               <div
                 key={state.userId}
-                className="w-4 h-4 rounded-full overflow-hidden border border-white shadow-sm"
+                className={`${avatarSize} rounded-full overflow-hidden border border-white shadow-sm`}
                 style={{ zIndex: 10 - index }}
               >
                 <img
@@ -59,7 +65,7 @@ export const getMessageStatusIcon = ({
             );
           })}
           {readStates.length > 3 && (
-            <div className="w-4 h-4 bg-gray-300 rounded-full flex items-center justify-center text-xs text-gray-600 border border-white shadow-sm">
+            <div className={`${avatarSize} bg-gray-300 rounded-full flex items-center justify-center ${textSize} text-gray-600 border border-white shadow-sm`}>
               +
             </div>
           )}
@@ -67,10 +73,10 @@ export const getMessageStatusIcon = ({
       );
     } else if (deliveredStates.length > 0) {
       // Có người đã nhận nhưng chưa ai xem - DELIVERED
-      return <CheckCheck className="w-3 h-3 text-gray-400" />;
+      return <CheckCheck className={`${iconSize} text-gray-400`} />;
     } else {
       // Chưa ai nhận - SENT
-      return <Check className="w-3 h-3 text-gray-400" />;
+      return <Check className={`${iconSize} text-gray-400`} />;
     }
   } else {
     // Direct chat: logic cũ
@@ -78,19 +84,19 @@ export const getMessageStatusIcon = ({
       (state) => state.userId !== currentUserId
     );
     if (!recipientState) {
-      return <Check className="w-3 h-3 text-gray-400" />;
+      return <Check className={`${iconSize} text-gray-400`} />;
     }
 
     const status = recipientState.status.toLowerCase();
     switch (status) {
       case "sent":
-        return <Check className="w-3 h-3 text-gray-400" />;
+        return <Check className={`${iconSize} text-gray-400`} />;
       case "delivered":
-        return <CheckCheck className="w-3 h-3 text-gray-400" />;
+        return <CheckCheck className={`${iconSize} text-gray-400`} />;
       case "read":
-        return <CheckCheck className="w-3 h-3 text-blue-500" />;
+        return <CheckCheck className={`${iconSize} text-blue-500`} />;
       default:
-        return <Check className="w-3 h-3 text-gray-400" />;
+        return <Check className={`${iconSize} text-gray-400`} />;
     }
   }
 };
