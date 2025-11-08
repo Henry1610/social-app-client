@@ -1,5 +1,8 @@
 import React from "react";
 
+/**
+ * Notification Skeleton - Skeleton cho danh sách thông báo
+ */
 const NotificationSkeleton = () => {
   return (
     <div className="divide-y divide-gray-100">
@@ -22,3 +25,4 @@ const NotificationSkeleton = () => {
 };
 
 export default NotificationSkeleton;
+

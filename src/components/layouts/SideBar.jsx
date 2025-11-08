@@ -22,7 +22,7 @@ import {
   useDeleteSearchHistoryItemMutation,
 } from "../../features/profile/profileApi";
 import { NotificationCenter } from "../common/NotificationCenter";
-import SearchSkeleton from "../common/SearchSkeleton";
+import { SearchSkeleton } from "../common/skeletons";
 import useLogout from "../../features/auth/useLogout";
 import CreatePostModal from "../../features/post/components/CreatePostModal";
 

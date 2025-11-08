@@ -1,5 +1,8 @@
 import React from "react";
 
+/**
+ * Profile Skeleton - Skeleton cho trang profile
+ */
 const ProfileSkeleton = () => {
   return (
     <div className="ml-[var(--feed-sidebar-width)] flex flex-1 justify-center">
@@ -52,3 +55,4 @@ const ProfileSkeleton = () => {
 };
 
 export default ProfileSkeleton;
+

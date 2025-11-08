@@ -7,7 +7,7 @@ import {
 } from "../../features/profile/profileApi";
 import { toast } from "sonner";
 import { formatTimeAgo } from "../../utils/formatTimeAgo";
-import NotificationSkeleton from "./NotificationSkeleton";
+import { NotificationSkeleton } from "./skeletons";
 
 export const NotificationCenter = () => {
   const navigate = useNavigate();

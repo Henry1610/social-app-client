@@ -1,4 +1,8 @@
+import React from "react";
 
+/**
+ * Modal Skeleton - Skeleton cho danh sách trong modal
+ */
 const ModalSkeleton = ({ count = 8, showButtons = true }) => {
   return (
     <div className="space-y-2">
@@ -29,3 +33,4 @@ const ModalSkeleton = ({ count = 8, showButtons = true }) => {
 };
 
 export default ModalSkeleton;
+

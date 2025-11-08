@@ -10,7 +10,7 @@ import {
 import { toast } from "react-hot-toast";
 import FollowButton from "./FollowButton";
 import confirmToast from "../../../components/common/confirmToast";
-import ModalSkeleton from "../../../components/common/ModalSkeleton";
+import { ModalSkeleton } from "../../../components/common/skeletons";
 
 const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSelfProfile = false }) => {
   const navigate = useNavigate();

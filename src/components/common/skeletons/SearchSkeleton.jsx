@@ -1,5 +1,8 @@
 import React from "react";
 
+/**
+ * Search Skeleton - Skeleton cho kết quả tìm kiếm
+ */
 const SearchSkeleton = () => {
   return (
     <div className="space-y-2">
@@ -20,3 +23,4 @@ const SearchSkeleton = () => {
 };
 
 export default SearchSkeleton;
+

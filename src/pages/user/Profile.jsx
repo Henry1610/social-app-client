@@ -25,13 +25,13 @@ import { useGetMyRepostsQuery } from "../../features/repost/repostApi";
 
 import FollowButton from "../../features/profile/components/FollowButton";
 import ModalUserItem from "../../features/profile/components/ModalUserItem";
-import ProfileSkeleton from "../../features/profile/components/ProfileSkeleton";
+import { ProfileSkeleton } from "../../components/common/skeletons";
 import PostGridItem from "../../features/profile/components/PostGridItem";
 import Post from "../../features/profile/components/Post";
 import PostDetailModal from "../../features/profile/components/PostDetailModal";
 import confirmToast from "../../components/common/confirmToast";
 import Footer from "../../components/layouts/Footer";
-import ModalSkeleton from "../../components/common/ModalSkeleton";
+import { ModalSkeleton } from "../../components/common/skeletons";
 export default function Profile() {
   const [activeTab, setActiveTab] = useState("posts");
   const [selectedPost, setSelectedPost] = useState(null);

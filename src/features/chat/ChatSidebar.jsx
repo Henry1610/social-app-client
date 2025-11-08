@@ -29,10 +29,7 @@ const ChatSidebar = ({
     
     return allConversations.filter(conv => {
       const conversationName = conv.type === 'GROUP' 
-        ? (conv.name || conv.members
-            ?.filter(member => member.user.id !== currentUser?.id)
-            ?.map(member => member.user.fullName || member.user.username)
-            ?.join(' ') || '')
+        ? (conv.name || '')
         : (conv.members?.find(member => member.user.id !== currentUser?.id)?.user?.fullName || 
            conv.members?.find(member => member.user.id !== currentUser?.id)?.user?.username || '');
       
@@ -229,24 +226,8 @@ const ChatSidebar = ({
               // Xử lý hiển thị tên conversation
               const getConversationName = () => {
                 if (conv.type === 'GROUP') {
-                  // Nếu có tên nhóm, hiển thị tên nhóm
-                  if (conv.name) {
-                    return conv.name;
-                  }
-                  
-                  // Nếu không có tên nhóm, hiển thị tên các thành viên
-                  const memberNames = conv.members
-                    ?.filter(member => member.user.id !== currentUser?.id)
-                    ?.map(member => member.user.fullName || member.user.username)
-                    ?.slice(0, 3) || []; // Chỉ lấy tối đa 3 người
-                  
-                  if (memberNames.length === 0) {
-                    return 'Nhóm chat';
-                  } else if (memberNames.length <= 2) {
-                    return memberNames.join(', ');
-                  } else {
-                    return `${memberNames.slice(0, 2).join(', ')} và ${memberNames.length - 2} người khác`;
-                  }
+                  // GROUP luôn có tên nhóm
+                  return conv.name || '';
                 } else {
                   // DIRECT conversation
                   return otherMember?.user?.fullName || otherMember?.user?.username || 'Người dùng';
