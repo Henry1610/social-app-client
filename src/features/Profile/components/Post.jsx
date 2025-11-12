@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Repeat2, X, Bookmark, BookmarkCheck, Send } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, X, Bookmark, BookmarkCheck, Send, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useGetReactionsQuery, useCreateOrUpdateReactionMutation } from "../../reaction/reactionApi";
 import { postApi, useSavePostMutation, useUnsavePostMutation } from "../../post/postApi";
 import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/repostApi";
-import { useGetCommentsByPostQuery, useCreateCommentMutation } from "../../comment/commentApi";
+import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/commentApi";
 import ModalUserItem from "./ModalUserItem";
+import RepostModal from "../../../components/common/RepostModal";
 import { useSelector, useDispatch } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
 import { toast } from "sonner";
 import { usePostView } from "../../../hooks/usePostView";
+import confirmToast from "../../../components/common/confirmToast";
 function Post({
   id,
   user,
@@ -59,6 +61,7 @@ function Post({
   const [originalIsSaved, setOriginalIsSaved] = useState(initialOriginalIsSaved);
   const [originalIsReposted, setOriginalIsReposted] = useState(initialOriginalIsReposted);
   const [originalCommentsCountLocal, setOriginalCommentsCountLocal] = useState(originalCommentsCount);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectCurrentUser);
@@ -84,6 +87,7 @@ function Post({
   const [repostPost, { isLoading: isReposting }] = useRepostPostMutation();
   const [undoRepost, { isLoading: isUndoingRepost }] = useUndoRepostMutation();
   const [createComment, { isLoading: isCommenting }] = useCreateCommentMutation();
+  const [deleteComment, { isLoading: isDeletingComment }] = useDeleteCommentMutation();
   
   const { data: commentsData, isLoading: loadingComments, refetch: refetchComments } = useGetCommentsByPostQuery(
     { postId: isRepostComment ? null : commentTargetId, repostId: isRepostComment ? commentTargetId : null, page: 1, limit: 50, sortBy: "desc" },
@@ -160,6 +164,12 @@ function Post({
     e?.stopPropagation();
     if (!targetId || isReacting) return;
 
+    // Nếu đang unlike, cần xác nhận
+    if (isLiked) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ thích bài viết này?");
+      if (!confirm) return;
+    }
+
     // Optimistic update - lưu giá trị cũ để revert nếu có lỗi
     const wasLiked = isLiked;
     const oldLikeCount = localLikesCount;
@@ -187,6 +197,12 @@ function Post({
   const handleToggleSave = async (e) => {
     e?.stopPropagation();
     if (!id || isSavingPost) return;
+
+    // Nếu đang unsave, cần xác nhận
+    if (isSaved) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ lưu bài viết này?");
+      if (!confirm) return;
+    }
 
     // Optimistic update
     const wasSaved = isSaved;
@@ -217,6 +233,9 @@ function Post({
 
     // Nếu đã repost rồi thì hủy repost
     if (isReposted) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn hủy đăng lại bài viết này?");
+      if (!confirm) return;
+
       const wasReposted = isReposted;
       setLocalIsReposted(false);
 
@@ -260,6 +279,12 @@ function Post({
     e?.stopPropagation();
     if (!id || isReacting) return;
 
+    // Nếu đang unlike, cần xác nhận
+    if (originalIsLiked) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ thích bài viết này?");
+      if (!confirm) return;
+    }
+
     const wasLiked = originalIsLiked;
     const oldLikeCount = originalLikesCount;
     const newLikeCount = wasLiked ? oldLikeCount - 1 : oldLikeCount + 1;
@@ -282,6 +307,12 @@ function Post({
   const handleOriginalToggleSave = async (e) => {
     e?.stopPropagation();
     if (!id || isSavingPost) return;
+
+    // Nếu đang unsave, cần xác nhận
+    if (originalIsSaved) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ lưu bài viết này?");
+      if (!confirm) return;
+    }
 
     const wasSaved = originalIsSaved;
     setOriginalIsSaved(!wasSaved);
@@ -306,6 +337,9 @@ function Post({
     if (!id || isRepostingPost) return;
 
     if (originalIsReposted) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn hủy đăng lại bài viết này?");
+      if (!confirm) return;
+
       const wasReposted = originalIsReposted;
       setOriginalIsReposted(false);
 
@@ -363,6 +397,44 @@ function Post({
     } catch (error) {
       toast.error(error?.data?.message || "Thêm bình luận thất bại");
       setOriginalCommentText(content);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn xóa bình luận này?");
+      if (!confirm) return;
+
+      await deleteComment({
+        commentId,
+        postId: isRepostComment ? null : commentTargetId,
+        repostId: isRepostComment ? commentTargetId : null,
+      }).unwrap();
+
+      toast.success("Đã xóa bình luận");
+      setLocalCommentsCount(prev => Math.max(0, prev - 1));
+      refetchComments();
+    } catch (error) {
+      toast.error(error?.data?.message || "Xóa bình luận thất bại");
+    }
+  };
+
+  const handleDeleteOriginalComment = async (commentId) => {
+    try {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn xóa bình luận này?");
+      if (!confirm) return;
+
+      await deleteComment({
+        commentId,
+        postId: id,
+        repostId: null,
+      }).unwrap();
+
+      toast.success("Đã xóa bình luận");
+      setOriginalCommentsCountLocal(prev => Math.max(0, prev - 1));
+      refetchOriginalComments();
+    } catch (error) {
+      toast.error(error?.data?.message || "Xóa bình luận thất bại");
     }
   };
 
@@ -579,21 +651,52 @@ function Post({
           {media.length > 0 && (
             <div className="relative mb-3 mx-auto">
               <img
-                src={media[0].url}
+                src={media[currentMediaIndex].url}
                 alt="post"
                 className="w-full aspect-square object-cover rounded-md"
               />
               {media.length > 1 && (
-                <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1">
-                  {media.map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        i === 0 ? "bg-blue-500" : "bg-gray-400"
-                      }`}
-                    ></div>
-                  ))}
-                </div>
+                <>
+                  {/* Navigation arrows */}
+                  {currentMediaIndex > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentMediaIndex(prev => prev - 1);
+                      }}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all z-10"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-900" />
+                    </button>
+                  )}
+                  {currentMediaIndex < media.length - 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentMediaIndex(prev => prev + 1);
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all z-10"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-900" />
+                    </button>
+                  )}
+                  
+                  {/* Dots indicator */}
+                  <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1">
+                    {media.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentMediaIndex(i);
+                        }}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                          i === currentMediaIndex ? "bg-blue-500 w-4" : "bg-gray-400"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -715,7 +818,7 @@ function Post({
 
       {/* Modal danh sách người thích */}
       {showLikesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-lg min-h-[400px] max-h-[80vh] flex flex-col">
             {/* Header */}
             <div className="flex justify-between items-center pt-2 px-2">
@@ -759,71 +862,22 @@ function Post({
       )}
 
       {/* Repost Modal */}
-      {showRepostModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowRepostModal(false);
-              setNewRepostContent("");
-            }
-          }}
-        >
-          <div
-            className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Đăng lại bài viết</h3>
-              <button
-                onClick={() => {
-                  setShowRepostModal(false);
-                  setNewRepostContent("");
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <textarea
-              value={newRepostContent}
-              onChange={(e) => setNewRepostContent(e.target.value)}
-              placeholder="Thêm suy nghĩ của bạn (tùy chọn)..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={4}
-              maxLength={500}
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-gray-500">
-                {newRepostContent.length}/500
-              </span>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowRepostModal(false);
-                  setNewRepostContent("");
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleConfirmRepost}
-                disabled={isRepostingPost}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                {isRepostingPost ? "Đang đăng lại..." : "Đăng lại"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <RepostModal
+        isOpen={showRepostModal}
+        onClose={() => {
+          setShowRepostModal(false);
+          setNewRepostContent("");
+        }}
+        content={newRepostContent}
+        onContentChange={setNewRepostContent}
+        onConfirm={handleConfirmRepost}
+        isLoading={isRepostingPost}
+      />
 
       {/* Comments Modal */}
       {showCommentsModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowCommentsModal(false);
@@ -858,7 +912,7 @@ function Post({
               ) : comments.length > 0 ? (
                 <div className="space-y-4">
                   {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
+                    <div key={comment.id} className="flex gap-3 group">
                       <img
                         src={
                           comment.user?.avatarUrl ||
@@ -868,7 +922,7 @@ function Post({
                         className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
                       />
                       <div className="flex-1">
-                        <div className="bg-gray-100 rounded-lg p-3">
+                        <div className="bg-gray-100 rounded-lg p-3 relative">
                           <p className="text-sm">
                             <span className="font-semibold text-gray-900">
                               {comment.user?.username}
@@ -877,6 +931,19 @@ function Post({
                               {comment.content}
                             </span>
                           </p>
+                          {comment.userId === currentUser?.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteComment(comment.id);
+                              }}
+                              disabled={isDeletingComment}
+                              className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded-full transition-opacity disabled:opacity-50"
+                              title="Xóa bình luận"
+                            >
+                              <Trash2 size={14} className="text-red-500" />
+                            </button>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(comment.createdAt).toLocaleDateString("vi-VN", {
@@ -952,7 +1019,7 @@ function Post({
 
       {/* Original Post Likes Modal */}
       {showOriginalLikesModal && isRepost && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-lg min-h-[400px] max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center pt-2 px-2">
               <div className="w-6"></div>
@@ -993,7 +1060,7 @@ function Post({
       {/* Original Post Comments Modal */}
       {showOriginalCommentsModal && isRepost && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowOriginalCommentsModal(false);
@@ -1025,7 +1092,7 @@ function Post({
               ) : originalComments.length > 0 ? (
                 <div className="space-y-4">
                   {originalComments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
+                    <div key={comment.id} className="flex gap-3 group">
                       <img
                         src={
                           comment.user?.avatarUrl ||
@@ -1035,7 +1102,7 @@ function Post({
                         className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
                       />
                       <div className="flex-1">
-                        <div className="bg-gray-100 rounded-lg p-3">
+                        <div className="bg-gray-100 rounded-lg p-3 relative">
                           <p className="text-sm">
                             <span className="font-semibold text-gray-900">
                               {comment.user?.username}
@@ -1044,6 +1111,19 @@ function Post({
                               {comment.content}
                             </span>
                           </p>
+                          {comment.userId === currentUser?.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteOriginalComment(comment.id);
+                              }}
+                              disabled={isDeletingComment}
+                              className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded-full transition-opacity disabled:opacity-50"
+                              title="Xóa bình luận"
+                            >
+                              <Trash2 size={14} className="text-red-500" />
+                            </button>
+                          )}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(comment.createdAt).toLocaleDateString("vi-VN", {
@@ -1116,65 +1196,18 @@ function Post({
       )}
 
       {/* Original Post Repost Modal */}
-      {showOriginalRepostModal && isRepost && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowOriginalRepostModal(false);
-              setOriginalRepostContent("");
-            }
+      {isRepost && (
+        <RepostModal
+          isOpen={showOriginalRepostModal}
+          onClose={() => {
+            setShowOriginalRepostModal(false);
+            setOriginalRepostContent("");
           }}
-        >
-          <div
-            className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Đăng lại bài viết</h3>
-              <button
-                onClick={() => {
-                  setShowOriginalRepostModal(false);
-                  setOriginalRepostContent("");
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <textarea
-              value={originalRepostContent}
-              onChange={(e) => setOriginalRepostContent(e.target.value)}
-              placeholder="Thêm suy nghĩ của bạn (tùy chọn)..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={4}
-              maxLength={500}
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-gray-500">
-                {originalRepostContent.length}/500
-              </span>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowOriginalRepostModal(false);
-                  setOriginalRepostContent("");
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleConfirmOriginalRepost}
-                disabled={isRepostingPost}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                {isRepostingPost ? "Đang đăng lại..." : "Đăng lại"}
-              </button>
-            </div>
-          </div>
-        </div>
+          content={originalRepostContent}
+          onContentChange={setOriginalRepostContent}
+          onConfirm={handleConfirmOriginalRepost}
+          isLoading={isRepostingPost}
+        />
       )}
     </article>
   );

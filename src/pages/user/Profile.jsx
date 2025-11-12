@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Grid, BookmarkCheck, Lock, Settings, Camera, X, Repeat2 } from "lucide-react";
+import { Grid, BookmarkCheck, Lock, Settings, Camera, X, Repeat2, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { selectCurrentUser, updateUser } from "../../features/auth/authSlice";
@@ -138,7 +138,7 @@ export default function Profile() {
         (profileUser && !isSelf && isPrivate && !followStatus?.isFollowing),
     }
   );
-
+  
   const posts = useMemo(() => postsData?.posts || [], [postsData?.posts]);
 
   // Lấy saved posts (chỉ khi là profile của chính mình)
@@ -172,22 +172,27 @@ export default function Profile() {
       // Stats của repost (reaction và comment của chính repost)
       repostReactionCount: repost.reactionCount || 0,
       repostCommentCount: repost.commentCount || 0,
-      // Stats của bài gốc
-      originalReactionCount: repost.post.originalReactionCount || repost.post._count?.reactions || 0,
-      originalCommentCount: repost.post.originalCommentCount || repost.post._count?.comments || 0,
-      originalRepostsCount: repost.post.originalRepostsCount || repost.post._count?.reposts || 0,
-      originalSavesCount: repost.post.originalSavesCount || 0,
-      // Trạng thái tương tác của bài gốc
-      originalIsLiked: repost.post.originalIsLiked || false,
-      originalIsSaved: repost.post.originalIsSaved || false,
-      originalIsReposted: repost.post.originalIsReposted || false,
+      // Trạng thái tương tác của chính repost (từ API)
+      isLiked: repost.isLiked || false,
+      isSaved: repost.isSaved || false,
+      isReposted: repost.isReposted || false,
+      // Stats của bài gốc (từ API, có fallback về _count nếu cần)
+      originalReactionCount: repost.post.originalReactionCount ?? repost.post._count?.reactions ?? 0,
+      originalCommentCount: repost.post.originalCommentCount ?? repost.post._count?.comments ?? 0,
+      originalRepostsCount: repost.post.originalRepostsCount ?? repost.post._count?.reposts ?? 0,
+      originalSavesCount: repost.post.originalSavesCount ?? repost.post._count?.savedPosts ?? 0,
+      // Trạng thái tương tác của bài gốc (từ API)
+      originalIsLiked: repost.post.originalIsLiked ?? false,
+      originalIsSaved: repost.post.originalIsSaved ?? false,
+      originalIsReposted: repost.post.originalIsReposted ?? false,
       // Thời gian của bài gốc
-      originalCreatedAt: repost.post.originalCreatedAt || repost.post.createdAt || null,
+      originalCreatedAt: repost.post.originalCreatedAt ?? repost.post.createdAt ?? null,
+      // Thông tin repost
       isRepost: true,
       repostedBy: repost.user,
       repostContent: repost.content,
       repostCreatedAt: repost.createdAt,
-      repostId: repost.id, // ID của repost để có thể mở modal
+      repostId: repost.id,
     }));
   }, [repostsData?.reposts]);
 
@@ -294,12 +299,12 @@ export default function Profile() {
   };
 
   return (
-    <div className=" ml-[var(--feed-sidebar-width)] flex flex-1  justify-center">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="md:ml-[var(--feed-sidebar-width)] flex flex-1 justify-center pb-20 md:pb-0">
+      <div className="max-w-6xl mx-auto px-4 py-4 md:py-8 w-full">
         {/* Header */}
-        <div className="flex gap-12 mb-12">
+        <div className="flex gap-6 md:gap-12 mb-6 md:mb-12">
           {/* Avatar */}
-          <div className="relative w-40 h-40 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 group">
+          <div className="relative w-24 h-24 md:w-40 md:h-40 rounded-full overflow-hidden border-2 border-gray-300 flex-shrink-0 group">
             <img
               src={profileUser?.avatarUrl}
               alt={profileUser?.username}
@@ -333,8 +338,8 @@ export default function Profile() {
 
           {/* User Info */}
           <div className="flex-1 pt-2">
-            <div className="flex items-center gap-4 mb-6">
-              <h2 className="text-3xl font-light">
+            <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
+              <h2 className="text-xl md:text-3xl font-light">
                 {profileUser?.username || "user"}
               </h2>
               <FollowButton
@@ -362,30 +367,34 @@ export default function Profile() {
               </FollowButton>
             </div>
             {/* Thống kê */}
-            <div className="flex gap-10 mb-6 text-base">
-              <span>
-                <strong>{postCount}</strong>{" "}
-                <span className="text-gray-400">bài viết</span>
+            <div className="flex gap-6 md:gap-10 mb-4 md:mb-6 text-sm md:text-base">
+              <span className="flex items-center gap-1.5">
+                <Grid size={16} className="text-gray-600 md:hidden" />
+                <strong>{postCount}</strong>
+                <span className="hidden md:inline text-gray-400"> bài viết</span>
               </span>
               <span
                 onClick={() => openModal("followers")}
-                className="cursor-pointer hover:opacity-80 transition"
+                className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition"
               >
-                <strong>{followerCount}</strong>{" "}
-                <span className="text-gray-400">người theo dõi</span>
+                <Users size={16} className="text-gray-600 md:hidden" />
+                <strong>{followerCount}</strong>
+                <span className="hidden md:inline text-gray-400"> người theo dõi</span>
               </span>
               <span
                 onClick={() => openModal("following")}
-                className="cursor-pointer hover:opacity-80 transition"
+                className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition"
               >
-                <span className="text-gray-400">Đang theo dõi</span>{" "}
-                <strong>{followingCount}</strong>{" "}
-                <span className="text-gray-400">người dùng</span>
+                <UserPlus size={16} className="text-gray-600 md:hidden" />
+                <span className="hidden md:inline text-gray-400"> Đang theo dõi</span>
+
+                <strong>{followingCount}</strong>
+                <span className="hidden md:inline text-gray-400"> người dùng</span>
               </span>
             </div>
             {/* Tiểu sử */}
             <div>
-              <p className="font-semibold text-base ">
+              <p className="font-semibold text-sm md:text-base">
                 {profileUser?.fullName}
               </p>
             </div>
@@ -411,7 +420,7 @@ export default function Profile() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex justify-center gap-12 mb-8 border-t border-gray-300 pt-4">
+            <div className="flex justify-center gap-6 md:gap-12 mb-4 md:mb-8 border-t border-gray-300 pt-4">
               <button
                 onClick={() => setActiveTab("posts")}
                 className={`flex items-center gap-2 text-sm font-semibold uppercase tracking-wider transition ${
@@ -449,11 +458,11 @@ export default function Profile() {
             </div>
 
             {/* Posts Grid */}
-            <div className="min-h-[600px]">
+            <div className="min-h-[400px] md:min-h-[600px]">
               {activeTab === "posts" && (
                 <>
                   {loadingPosts ? (
-                    <div className="grid grid-cols-4 gap-1">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-1">
                       {[...Array(8)].map((_, i) => (
                         <div
                           key={i}
@@ -462,7 +471,7 @@ export default function Profile() {
                       ))}
                     </div>
                   ) : posts.length > 0 ? (
-                    <div className="grid grid-cols-4 gap-1 animate-fadeIn">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-1 animate-fadeIn">
                       {posts.map((post) => (
                         <PostGridItem
                       key={post.id}
@@ -512,21 +521,21 @@ export default function Profile() {
                           createdAt={post.repostCreatedAt || post.createdAt}
                           likes={post.repostReactionCount || 0}
                           commentsCount={post.repostCommentCount || 0}
-                          isLiked={false}
-                          isSaved={false}
-                          isReposted={false}
+                          isLiked={post.isLiked ?? false}
+                          isSaved={post.isSaved ?? false}
+                          isReposted={post.isReposted ?? false}
                           isRepost={true}
                           repostId={post.repostId || null}
                           repostedBy={post.repostedBy || null}
                           repostContent={post.repostContent || null}
-                          originalLikes={post.originalReactionCount || 0}
-                          originalCommentsCount={post.originalCommentCount || 0}
-                          originalRepostsCount={post.originalRepostsCount || 0}
-                          originalSavesCount={post.originalSavesCount || 0}
-                          originalIsLiked={post.originalIsLiked || false}
-                          originalIsSaved={post.originalIsSaved || false}
-                          originalIsReposted={post.originalIsReposted || false}
-                          originalCreatedAt={post.originalCreatedAt || null}
+                          originalLikes={post.originalReactionCount ?? 0}
+                          originalCommentsCount={post.originalCommentCount ?? 0}
+                          originalRepostsCount={post.originalRepostsCount ?? 0}
+                          originalSavesCount={post.originalSavesCount ?? 0}
+                          originalIsLiked={post.originalIsLiked ?? false}
+                          originalIsSaved={post.originalIsSaved ?? false}
+                          originalIsReposted={post.originalIsReposted ?? false}
+                          originalCreatedAt={post.originalCreatedAt ?? null}
                           onOpenPostModal={(postId) => {
                             const foundPost = reposts.find(p => p.id === postId);
                             if (foundPost) {
@@ -550,7 +559,7 @@ export default function Profile() {
               {activeTab === "saved" && isSelf && (
                 <>
                   {loadingSavedPosts ? (
-                    <div className="grid grid-cols-4 gap-1">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-1">
                       {[...Array(8)].map((_, i) => (
                         <div
                           key={i}
@@ -559,7 +568,7 @@ export default function Profile() {
                       ))}
                     </div>
                   ) : savedPosts.length > 0 ? (
-                    <div className="grid grid-cols-4 gap-1 animate-fadeIn">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-1 animate-fadeIn">
                       {savedPosts.map((post) => (
                         <PostGridItem
                           key={post.id}
@@ -603,7 +612,7 @@ export default function Profile() {
 
       {/* Modal hiển thị danh sách người theo dõi hoặc đang theo dõi */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-lg min-h-[400px] max-h-[80vh] flex flex-col">
             {/* Header */}
             <div className="flex justify-between items-center  pt-2 px-2">
@@ -721,7 +730,7 @@ export default function Profile() {
 
       {/* Modal Privacy Settings */}
       {showUserPrivacyModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div
             className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}

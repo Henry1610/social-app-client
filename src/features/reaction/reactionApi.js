@@ -8,12 +8,24 @@ export const reactionApi = baseApi.injectEndpoints({
         method: 'POST',
         body: { targetId, targetType, type },
       }),
-      invalidatesTags: (result, error, { targetId, targetType }) => [
-        { type: 'Post', id: targetType === 'POST' ? targetId : undefined },
-        { type: 'Comment', id: targetType === 'COMMENT' ? targetId : undefined },
-        { type: 'Reaction', id: `${targetType}_${targetId}_me` },
-        { type: 'Reaction', id: `${targetType}_${targetId}` },
-      ],
+      invalidatesTags: (result, error, { targetId, targetType }) => {
+        const tags = [
+          { type: 'Reaction', id: `${targetType}_${targetId}_me` },
+          { type: 'Reaction', id: `${targetType}_${targetId}` },
+        ];
+        
+        // Chỉ invalidate Post tag khi targetType là POST và có targetId
+        if (targetType === 'POST' && targetId) {
+          tags.push({ type: 'Post', id: targetId });
+        }
+        
+        // Chỉ invalidate Comment tag khi targetType là COMMENT và có targetId
+        if (targetType === 'COMMENT' && targetId) {
+          tags.push({ type: 'Comment', id: targetId });
+        }
+        
+        return tags;
+      },
     }),
 
     getReactions: builder.query({

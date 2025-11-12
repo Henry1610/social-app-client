@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
-import { useGetPostByIdQuery, useUpdatePostMutation, useDeletePostMutation, postApi } from "../../post/postApi";
+import { useGetPostByIdQuery, useUpdatePostMutation, useDeletePostMutation, postApi, useSavePostMutation, useUnsavePostMutation } from "../../post/postApi";
 import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/commentApi";
 import { useGetMyReactionQuery, useCreateOrUpdateReactionMutation, useGetReactionsQuery } from "../../reaction/reactionApi";
-import { Heart, MessageCircle, Share2, X, Settings, Send, CheckCircle, ChevronDown, MoreHorizontal } from "lucide-react";
+import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/repostApi";
+import { Heart, MessageCircle, X, Settings, Send, CheckCircle, ChevronDown, MoreHorizontal, ChevronLeft, ChevronRight, Repeat2, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../../components/common/confirmToast";
+import RepostModal from "../../../components/common/RepostModal";
 import { useDispatch } from "react-redux";
 
 const PostDetailModal = ({ 
@@ -27,6 +29,11 @@ const PostDetailModal = ({
   });
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isReposted, setIsReposted] = useState(false);
+  const [showRepostModal, setShowRepostModal] = useState(false);
+  const [repostContent, setRepostContent] = useState("");
   const settingsMenuRef = useRef(null);
   const privacySettingsRef = useRef(null);
 
@@ -37,6 +44,11 @@ const PostDetailModal = ({
   const selectedPostFull = fullPostData?.post;
   const isPostOwner = selectedPostFull && currentUser?.id === selectedPostFull.userId;
   const isRepost = !!repostId;
+
+  // Reset media index when post changes
+  useEffect(() => {
+    setCurrentMediaIndex(0);
+  }, [postId]);
 
   const {
     data: commentsData,
@@ -67,7 +79,7 @@ const PostDetailModal = ({
     { skip: !selectedPostFull?.id || (isRepost && !repostId) }
   );
 
-  const myReaction = myReactionData;
+  const myReaction = myReactionData?.reaction;
   const isLiked = !!myReaction;
 
   // Fetch stats của repost nếu là repost
@@ -89,6 +101,10 @@ const PostDetailModal = ({
   const [deleteComment, { isLoading: isDeletingComment }] = useDeleteCommentMutation();
   const [updatePost, { isLoading: isUpdatingPost }] = useUpdatePostMutation();
   const [deletePost, { isLoading: isDeletingPost }] = useDeletePostMutation();
+  const [savePost, { isLoading: isSaving }] = useSavePostMutation();
+  const [unsavePost, { isLoading: isUnsaving }] = useUnsavePostMutation();
+  const [repostPost, { isLoading: isReposting }] = useRepostPostMutation();
+  const [undoRepost, { isLoading: isUndoingRepost }] = useUndoRepostMutation();
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
   const [showDeleteMenu, setShowDeleteMenu] = useState(null);
   const deleteMenuRefs = useRef({});
@@ -112,6 +128,16 @@ const PostDetailModal = ({
       });
       effectiveSetShowSettingsMenu(false);
       effectiveSetShowPrivacySettings(false);
+      
+      // Check if post is saved
+      if (selectedPostFull.isSaved !== undefined) {
+        setIsSaved(selectedPostFull.isSaved);
+      }
+      
+      // Check if post is reposted
+      if (selectedPostFull.isRepost !== undefined) {
+        setIsReposted(selectedPostFull.isRepost);
+      }
     }
   }, [selectedPostFull, effectiveSetShowSettingsMenu, effectiveSetShowPrivacySettings]);
 
@@ -228,6 +254,68 @@ const PostDetailModal = ({
     }
   };
 
+  const handleToggleSave = async (e) => {
+    e?.stopPropagation();
+    if (!selectedPostFull || isSaving || isUnsaving) return;
+
+    const wasSaved = isSaved;
+    setIsSaved(!wasSaved);
+
+    try {
+      if (wasSaved) {
+        await unsavePost(selectedPostFull.id).unwrap();
+        toast.success("Đã bỏ lưu bài viết");
+      } else {
+        await savePost(selectedPostFull.id).unwrap();
+        toast.success("Đã lưu bài viết");
+      }
+      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: selectedPostFull.id }]));
+    } catch (error) {
+      setIsSaved(wasSaved);
+      toast.error(error?.data?.message || "Có lỗi xảy ra");
+    }
+  };
+
+  const handleToggleRepost = async (e) => {
+    e?.stopPropagation();
+    if (!selectedPostFull || isReposting || isUndoingRepost) return;
+
+    if (isReposted) {
+      const wasReposted = isReposted;
+      setIsReposted(false);
+
+      try {
+        await undoRepost(selectedPostFull.id).unwrap();
+        toast.success("Đã hủy đăng lại");
+        dispatch(postApi.util.invalidateTags([{ type: 'Post', id: selectedPostFull.id }]));
+      } catch (error) {
+        setIsReposted(wasReposted);
+        toast.error(error?.data?.message || "Có lỗi xảy ra");
+      }
+      return;
+    }
+
+    setShowRepostModal(true);
+  };
+
+  const handleConfirmRepost = async () => {
+    if (!selectedPostFull || isReposting) return;
+
+    const wasReposted = isReposted;
+    setIsReposted(true);
+
+    try {
+      await repostPost({ postId: selectedPostFull.id, content: repostContent.trim() }).unwrap();
+      toast.success("Đã đăng lại bài viết");
+      setShowRepostModal(false);
+      setRepostContent("");
+      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: selectedPostFull.id }]));
+    } catch (error) {
+      setIsReposted(wasReposted);
+      toast.error(error?.data?.message || "Có lỗi xảy ra");
+    }
+  };
+
   const handleDeletePost = async () => {
     if (!selectedPostFull?.id) return;
 
@@ -268,16 +356,70 @@ const PostDetailModal = ({
         style={{ maxHeight: "95vh", height: "95vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 flex items-center justify-center bg-black min-h-[800px]">
-          {selectedPostFull.media?.[0]?.mediaUrl ? (
-            <img
-              src={selectedPostFull.media[0].mediaUrl}
-              alt={selectedPostFull.content || "Post"}
-              className="w-full h-auto max-h-[95vh] object-contain"
-              onError={(e) => {
-                e.target.src = "/images/placeholder.png";
-              }}
-            />
+        <div className="flex-1 flex items-center justify-center bg-black min-h-[800px] relative">
+          {selectedPostFull.media && selectedPostFull.media.length > 0 ? (
+            <>
+              {selectedPostFull.media[currentMediaIndex]?.mediaUrl ? (
+                <img
+                  src={selectedPostFull.media[currentMediaIndex].mediaUrl}
+                  alt={selectedPostFull.content || "Post"}
+                  className="w-full h-auto max-h-[95vh] object-contain"
+                  onError={(e) => {
+                    e.target.src = "/images/placeholder.png";
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                  <MessageCircle size={64} />
+                </div>
+              )}
+              
+              {/* Navigation arrows */}
+              {selectedPostFull.media.length > 1 && (
+                <>
+                  {currentMediaIndex > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentMediaIndex(prev => prev - 1);
+                      }}
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-900" />
+                    </button>
+                  )}
+                  {currentMediaIndex < selectedPostFull.media.length - 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentMediaIndex(prev => prev + 1);
+                      }}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-900" />
+                    </button>
+                  )}
+                  
+                  {/* Dots indicator */}
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1.5 z-40 mb-2">
+                    {selectedPostFull.media.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentMediaIndex(index);
+                        }}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          currentMediaIndex === index 
+                            ? "bg-white w-6" 
+                            : "bg-white/50 hover:bg-white/75"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-500">
               <MessageCircle size={64} />
@@ -473,30 +615,62 @@ const PostDetailModal = ({
             </div>
           </div>
 
-          <div className="flex gap-4 mb-3 text-gray-700 flex-shrink-0 border-b border-gray-300 pb-3">
-            <button
-              onClick={handleToggleLike}
-              disabled={isReacting || loadingMyReaction}
-              className={`flex items-center gap-1 transition ${
-                isLiked
-                  ? "text-red-500 hover:text-red-600"
-                  : "hover:text-gray-900"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <Heart
+          <div className="flex justify-between items-center gap-4 mb-3 text-gray-700 flex-shrink-0 border-b border-gray-300 pb-3">
+            <div className="flex gap-4">
+              <button
+                onClick={handleToggleLike}
+                disabled={isReacting || loadingMyReaction}
+                className={`flex items-center gap-1 transition ${
+                  isLiked
+                    ? "text-red-500 hover:text-red-600"
+                    : "hover:text-gray-900"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Heart
+                  size={22}
+                  fill={isLiked ? "currentColor" : "none"}
+                  className="transition"
+                />
+              </button>
+              <MessageCircle
                 size={22}
-                fill={isLiked ? "currentColor" : "none"}
-                className="transition"
+                className="hover:text-gray-900 cursor-pointer transition"
               />
-            </button>
-            <MessageCircle
-              size={22}
-              className="hover:text-gray-900 cursor-pointer transition"
-            />
-            <Share2
-              size={22}
-              className="hover:text-gray-900 cursor-pointer transition"
-            />
+              {!isRepost && (
+                <button
+                  onClick={handleToggleRepost}
+                  disabled={isReposting || isUndoingRepost}
+                  className={`flex items-center gap-1 transition ${
+                    isReposted
+                      ? "text-green-500 hover:text-green-600"
+                      : "hover:text-gray-900"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <Repeat2
+                    size={22}
+                    fill={isReposted ? "currentColor" : "none"}
+                    className="transition"
+                  />
+                </button>
+              )}
+            </div>
+            {!isRepost && (
+              <button
+                onClick={handleToggleSave}
+                disabled={isSaving || isUnsaving}
+                className={`flex items-center gap-1 transition ${
+                  isSaved
+                    ? "text-blue-500 hover:text-blue-600"
+                    : "hover:text-gray-900"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isSaved ? (
+                  <BookmarkCheck size={22} className="transition" />
+                ) : (
+                  <Bookmark size={22} className="transition" />
+                )}
+              </button>
+            )}
           </div>
 
           <div className="text-sm text-gray-700 flex justify-between mb-3 flex-shrink-0">
@@ -649,6 +823,20 @@ const PostDetailModal = ({
           )}
         </div>
       </div>
+
+      {/* Repost Modal */}
+      <RepostModal
+        isOpen={showRepostModal}
+        onClose={() => {
+          setShowRepostModal(false);
+          setRepostContent("");
+        }}
+        content={repostContent}
+        onContentChange={setRepostContent}
+        onConfirm={handleConfirmRepost}
+        isLoading={isReposting || isUndoingRepost}
+        zIndex={60}
+      />
     </div>
   );
 };

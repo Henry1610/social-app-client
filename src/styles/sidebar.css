@@ -12,7 +12,6 @@
   width: calc(100vw - var(--sidebar-current-width, var(--sidebar-width)));
   height: 100vh;
 }
-
 /* Khi sidebar collapsed (80px), chat chiếm thêm 170px */
 .chat-layout-collapsed {
   margin-left: var(--sidebar-collapsed-width);
@@ -26,11 +25,6 @@
   width: calc(100vw - var(--feed-sidebar-width));
 }
 
-.feed-layout-collapsed {
-  margin-left: var(--feed-sidebar-collapsed-width);
-  width: calc(100vw - var(--feed-sidebar-collapsed-width));
-}
-
 /* Responsive sidebar width */
 @media (max-width: 1024px) {
   :root {
@@ -39,7 +33,7 @@
     --feed-sidebar-width: 80px;
     --feed-sidebar-collapsed-width: 80px;
   }
-  
+
   /* Tablet: Chat vẫn có bonus 170px */
   .chat-layout-collapsed {
     width: calc(100vw - 80px + 170px);
@@ -53,23 +47,25 @@
     --feed-sidebar-width: 0px;
     --feed-sidebar-collapsed-width: 0px;
   }
-  
+
+  /* Mobile: Hide sidebar */
+  .main-sidebar {
+    display: none;
+  }
+
   /* Mobile: Full width layouts */
-  .chat-layout,
   .chat-layout-collapsed,
-  .feed-layout,
-  .feed-layout-collapsed {
+  .feed-layout {
     margin-left: 0;
     width: 100vw;
+    padding-bottom: 56px;
   }
 }
 
 @media (max-width: 480px) {
   /* Small mobile: Optimize for very small screens */
-  .chat-layout,
   .chat-layout-collapsed,
-  .feed-layout,
-  .feed-layout-collapsed {
+  .feed-layout {
     width: 100vw;
     min-width: 100vw;
   }

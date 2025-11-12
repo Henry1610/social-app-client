@@ -164,7 +164,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm">
       <div 
         className="bg-white rounded-xl w-full mx-4 relative overflow-hidden flex flex-col shadow-2xl" 
         style={{ 
@@ -197,7 +197,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {selectedFiles.length === 0 ? (
             // Empty state - Upload area
             <div className="flex-1 flex items-center justify-center p-8">
@@ -245,7 +245,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
             // Has files - Show preview
             <>
               {/* Main preview area */}
-              <div className={`bg-black relative flex items-center justify-center ${showCaption ? 'flex-1' : 'w-full'}`}>
+              <div className={`bg-black relative flex items-center justify-center ${showCaption ? 'flex-1 min-h-0' : 'w-full'} ${showCaption ? 'md:flex-1' : ''}`}>
                 {/* Current media */}
                 <div className="relative w-full h-full flex items-center justify-center">
                   <div
@@ -397,9 +397,9 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                 )}
               </div>
 
-              {/* Caption sidebar (when showCaption is true) */}
+              {/* Caption and Privacy Settings (when showCaption is true) - Below on mobile, beside on desktop */}
               {showCaption && (
-                <div className="w-80 border-l border-gray-200 flex flex-col bg-white flex-shrink-0">
+                <div className="border-t md:border-t-0 md:border-l border-gray-200 flex flex-col bg-white flex-shrink-0 w-full md:w-80">
                   <div className="p-4 flex-1 overflow-y-auto">
                     <textarea
                       value={content}
@@ -415,9 +415,9 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                   </div>
                   
                   {/* Privacy Settings */}
-                  <div className="p-4 border-t border-gray-200 space-y-3">
+                  <div className="px-4 pb-4 md:pt-0 border-t border-gray-200 space-y-3">
                     {/* Who can see */}
-                      <div>
+                    <div>
                       <p className="text-xs text-gray-500 mb-1.5">Ai có thể xem?</p>
                       <div className="relative">
                         <select
@@ -434,7 +434,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                     </div>
                     
                     {/* Who can comment */}
-                      <div>
+                    <div>
                       <p className="text-xs text-gray-500 mb-1.5">Ai có thể bình luận?</p>
                       <div className="relative">
                         <select

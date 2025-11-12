@@ -157,13 +157,13 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
     }
   };
 
-  // Ẩn component nếu đang ở trang /chat
+  // Ẩn component nếu đang ở trang /chat hoặc trên mobile (đã có bottom nav)
   if (location.pathname.startsWith('/chat')) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-10 right-10 z-50">
+    <div className="hidden md:block fixed bottom-10 right-10 z-50">
       {/* Nút mở khung chat */}
       <button
         onClick={() => {
@@ -215,7 +215,7 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
 
       {/* Khung tin nhắn */}
         {open && (
-          <div className="fixed bottom-4 right-4 left-4 top-auto w-auto h-[70vh] max-h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden sm:bottom-10 sm:right-10 sm:left-auto sm:w-[350px] sm:h-[500px]">
+          <div className="fixed bottom-10 right-10 w-[350px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-2.5 border-b">
             {selectedConv ? (

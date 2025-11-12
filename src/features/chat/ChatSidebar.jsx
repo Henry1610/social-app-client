@@ -160,7 +160,7 @@ const ChatSidebar = ({
   }, [conversations, currentUser?.id, isUserActuallyOnline]);
 
   return (
-    <div className="flex flex-col h-full bg-white text-gray-900">
+    <div className="flex flex-col h-full bg-white text-gray-900 ">
       {/* Header */}
       <div className="pt-10 px-4 flex items-center justify-end">
         <button

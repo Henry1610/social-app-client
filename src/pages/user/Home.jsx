@@ -5,6 +5,7 @@ import PostDetailModal from "../../features/profile/components/PostDetailModal";
 import RightSidebar from "../../components/layouts/RightSideBar";
 import Post from "../../features/profile/components/Post";
 import FloatingDirectMessage from "../../components/common/FloatingDirectMessage";
+import HomeHeader from "../../components/layouts/HomeHeader";
 
 function Home() {
   const [selectedPost, setSelectedPost] = useState(null);
@@ -67,9 +68,11 @@ function Home() {
   };
 
   return (
-    <main className="flex-1 feed-layout flex justify-center">
-      {/* Feed Section */}
-      <section className="flex-1 max-w-[700px] py-6">
+    <>
+      <HomeHeader />
+      <main className="flex-1 feed-layout flex justify-center">
+        {/* Feed Section */}
+        <section className="flex-1 max-w-[700px] py-6 md:pt-6 pt-20">
         {/* Feed Posts */}
         {isLoading && (
           <div className="text-center py-8">
@@ -141,7 +144,8 @@ function Home() {
           onClose={handleClosePostModal}
         />
       )}
-    </main>
+      </main>
+    </>
   );
 }
 
