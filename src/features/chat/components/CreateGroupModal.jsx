@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Users, Check } from 'lucide-react';
-import { useLazySearchUsersQuery } from '../../profile/profileApi.js';
-import { useCreateConversationMutation } from '../chatApi';
+import { useLazySearchUsersQuery } from '../../search/api/searchApi';
+import { useCreateConversationMutation } from '../api/chatApi';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser } from '../../auth/authSlice';
 

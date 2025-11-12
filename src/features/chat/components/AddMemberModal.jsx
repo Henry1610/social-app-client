@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, UserPlus } from 'lucide-react';
-import { useLazySearchUsersQuery } from '../../profile/profileApi';
+import { useLazySearchUsersQuery } from '../../search/api/searchApi';
 import socketService from '../../../services/socket';
 
 const AddMemberModal = ({ 

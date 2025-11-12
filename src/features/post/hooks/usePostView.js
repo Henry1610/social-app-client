@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { useMarkPostAsViewedMutation } from '../features/post/postApi';
-import { useMarkRepostAsViewedMutation } from '../features/repost/repostApi';
+import { useMarkPostAsViewedMutation } from '../api/postApi';
+import { useMarkRepostAsViewedMutation } from '../../repost/api/repostApi';
 
 export const usePostView = (postId, repostId = null, enabled = true, threshold = 0.5, delayMs = 1000) => {
   const postRef = useRef(null);

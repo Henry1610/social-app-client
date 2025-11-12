@@ -1,4 +1,4 @@
-import { baseApi } from '../../services/api';
+import { baseApi } from '../../../services/api';
 
 export const profileApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -7,9 +7,6 @@ export const profileApi = baseApi.injectEndpoints({
       providesTags: (result, error, username) => [
         { type: 'User', id: `follow-stats-${username}` },
       ],
-    }),
-    searchUsers: builder.query({
-      query: (q) => ({ url: `/user/search`, params: { q } }),
     }),
     getPublicProfile: builder.query({
       query: (username) => `/user/${username}/profile`,
@@ -345,28 +342,6 @@ export const profileApi = baseApi.injectEndpoints({
         { type: 'User', id: `follow-status-${username}` },
       ],
     }),
-    
-    getSearchHistory: builder.query({
-      query: ({ page = 1, limit = 10 } = {}) => ({
-        url: `/user/search/history`,
-        params: { page, limit },
-      }),
-    }),
-    clearSearchHistory: builder.mutation({
-      query: () => ({ url: `/user/search/history`, method: 'DELETE' }),
-    }),
-    recordSearchSelection: builder.mutation({
-      query: (payload) => ({ url: `/user/search/selection`, method: 'POST', body: payload }),
-    }),
-    deleteSearchHistoryItem: builder.mutation({
-      query: ({ type, id }) => ({ url: `/user/search/history/${type}/${id}`, method: 'DELETE' }),
-    }),
-    getNotifications: builder.query({
-      query: ({ page = 1, limit = 20 } = {}) => ({
-        url: `/user/notifications`,
-        params: { page, limit },
-      })
-    }),
     removeFollower: builder.mutation({
       query: (username) => ({ url: `/user/follows/${username}/remove-follower`, method: 'DELETE' }),
       async onQueryStarted(username, { dispatch, queryFulfilled, getState }) {
@@ -463,9 +438,7 @@ export const profileApi = baseApi.injectEndpoints({
 export const {
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
-  useGetNotificationsQuery,
   useGetFollowStatsQuery,
-  useLazySearchUsersQuery,
   useGetPublicProfileQuery,
   useGetFollowStatusQuery,
   useGetFollowersQuery,
@@ -473,10 +446,6 @@ export const {
   useFollowUserMutation,
   useUnfollowUserMutation,
   useCancelFollowRequestMutation,
-  useGetSearchHistoryQuery,
-  useClearSearchHistoryMutation,
-  useRecordSearchSelectionMutation,
-  useDeleteSearchHistoryItemMutation,
   useRemoveFollowerMutation,
   useUploadAvatarMutation,
   useGetUserPostsQuery,

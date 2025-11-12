@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Toaster, toast } from "sonner";
-import socketService from "../../services/socket.js";
+import socketService from "../../../services/socket.js";
 
 const NotificationToast = () => {
   useEffect(() => {

@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useGetFeedPostsQuery } from "../../features/post/postApi";
-import PostDetailModal from "../../features/profile/components/PostDetailModal";
+import { useGetFeedPostsQuery } from "../../features/post/api/postApi";
+import PostDetailModal from "../../features/post/components/PostDetailModal";
 import RightSidebar from "../../components/layouts/RightSideBar";
-import Post from "../../features/profile/components/Post";
+import Post from "../../features/post/components/Post";
 import FloatingDirectMessage from "../../components/common/FloatingDirectMessage";
 import HomeHeader from "../../components/layouts/HomeHeader";
 

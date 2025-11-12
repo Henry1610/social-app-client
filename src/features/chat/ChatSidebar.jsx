@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Search, Users, X } from "lucide-react";
 import { useSelector } from "react-redux";
-import { useGetConversationsQuery } from "./chatApi";
+import { useGetConversationsQuery } from "./api/chatApi";
 import { selectCurrentUser } from "../auth/authSlice";
 import socketService from "../../services/socket";
 import { formatOfflineTime } from "../../utils/formatTimeAgo";

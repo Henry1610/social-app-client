@@ -1,7 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
-import { NotificationCenter } from "../common/NotificationCenter";
-import SearchPanel from "../common/SearchPanel";
+import { NotificationCenter } from "../../features/notification/components/NotificationCenter";
+import SearchPanel from "../../features/search/components/SearchPanel";
 
 const SidePanel = ({
   active,

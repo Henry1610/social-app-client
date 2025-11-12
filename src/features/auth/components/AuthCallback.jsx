@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useLazyGetSessionAuthQuery } from "../../features/auth/authApi";
+import { useLazyGetSessionAuthQuery } from "../api/authApi";
 
 export default function AuthCallback() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Maximize, X, ArrowLeft } from "lucide-react";
 import { useSelector } from "react-redux";
-import { useGetConversationsQuery } from "../../features/chat/chatApi";
+import { useGetConversationsQuery } from "../../features/chat/api/chatApi";
 import { selectCurrentUser } from "../../features/auth/authSlice";
 import { formatTimeAgo } from "../../utils/formatTimeAgo";
 import { useChat } from "../../contexts/ChatContext";

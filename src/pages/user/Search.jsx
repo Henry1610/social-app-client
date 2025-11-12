@@ -7,8 +7,8 @@ import {
   useClearSearchHistoryMutation,
   useRecordSearchSelectionMutation,
   useDeleteSearchHistoryItemMutation,
-} from "../../features/profile/profileApi";
-import SearchPanel from "../../components/common/SearchPanel";
+} from "../../features/search/api/searchApi";
+import SearchPanel from "../../features/search/components/SearchPanel";
 
 const Search = () => {
   const navigate = useNavigate();

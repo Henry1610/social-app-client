@@ -8,15 +8,13 @@ import {
   selectAccessToken,
   setSessionInitialized,
 } from "../features/auth/authSlice";
-import { useGetMeQuery } from "../features/auth/authApi";
+import { useGetMeQuery } from "../features/auth/api/authApi";
 
 import ProtectedRoute from "../features/auth/ProtectedRoute";
 import PublicRoutes from "./PublicRoutes";
 import UserRoutes from "./UserRoutes";
-import AdminRoutes from "./AdminRoutes";
 
 import Layout from "../components/layouts/Layout";
-import AdminLayout from "../components/layouts/AdminLayout";
 import AuthLayout from "../components/layouts/AuthLayout";
 import FloatingDirectMessage from "../components/common/FloatingDirectMessage";
 import { ChatProvider } from "../contexts/ChatContext";

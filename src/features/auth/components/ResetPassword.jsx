@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import FloatingInput from "../../components/common/FloatingInput";
-import { useResetPasswordMutation } from "./authApi";
+import FloatingInput from "../../../components/common/FloatingInput";
+import { useResetPasswordMutation } from "../api/authApi";
 import { toast } from "sonner";
 
 const ResetPassword = () => {

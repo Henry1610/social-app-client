@@ -1,6 +1,6 @@
 import React from "react";
 import { X, Loader2 } from "lucide-react";
-import { SearchSkeleton } from "./skeletons";
+import { SearchSkeleton } from "../../../components/common/skeletons";
 
 const SearchPanel = ({
   value,

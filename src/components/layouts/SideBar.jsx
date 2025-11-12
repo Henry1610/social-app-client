@@ -18,8 +18,8 @@ import {
   useClearSearchHistoryMutation,
   useRecordSearchSelectionMutation,
   useDeleteSearchHistoryItemMutation,
-} from "../../features/profile/profileApi";
-import useLogout from "../../features/auth/useLogout";
+} from "../../features/search/api/searchApi";
+import useLogout from "../../features/auth/hooks/useLogout";
 import CreatePostModal from "../../features/post/components/CreatePostModal";
 import SidePanel from "./SidePanel";
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useChangePasswordMutation } from './authApi';
+import { useChangePasswordMutation } from '../api/authApi';
 import { toast } from 'sonner';
 
 const ChangePassword = () => {

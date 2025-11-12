@@ -1,7 +1,7 @@
 import { UserPlus, UserMinus, MessageCircle } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { useCreateConversationMutation } from "../../features/chat/chatApi";
+import { useCreateConversationMutation } from "../../features/chat/api/chatApi";
 
 const FollowButton = ({
   followStatus,

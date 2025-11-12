@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import FloatingInput from "../../components/common/FloatingInput";
-import { useRequestResetPasswordMutation } from "./authApi";
+import FloatingInput from "../../../components/common/FloatingInput";
+import { useRequestResetPasswordMutation } from "../api/authApi";
 import { toast } from "sonner";
-import Divider from "../../components/common/Divider";
+import Divider from "../../../components/common/Divider";
 const ForgotPassword = () => {
   const [inputValue, setInputValue] = useState("");
   const [retryAfter, setRetryAfter] = useState(0);

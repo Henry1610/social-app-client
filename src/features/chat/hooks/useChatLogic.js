@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useGetPublicProfileQuery } from "../../profile/profileApi";
+import { useGetPublicProfileQuery } from "../../profile/api/profileApi";
 import useCanMessage from "../../../hooks/useCanMessage";
 import {
   useGetMessagesQuery,
@@ -10,7 +10,7 @@ import {
   chatApi,
   useUploadChatMediaMutation,
   useTogglePinMessageMutation,
-} from "../chatApi";
+} from "../api/chatApi";
 import { useChat } from "../../../contexts/ChatContext";
 import { useSelector } from "react-redux";
 import socketService from "../../../services/socket";

@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Repeat2, X, Bookmark, BookmarkCheck, Send, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
-import { useGetReactionsQuery, useCreateOrUpdateReactionMutation } from "../../reaction/reactionApi";
-import { postApi, useSavePostMutation, useUnsavePostMutation } from "../../post/postApi";
-import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/repostApi";
-import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/commentApi";
-import ModalUserItem from "./ModalUserItem";
-import RepostModal from "../../../components/common/RepostModal";
+import { useGetReactionsQuery, useCreateOrUpdateReactionMutation } from "../../reaction/api/reactionApi";
+import { postApi, useSavePostMutation, useUnsavePostMutation } from "../api/postApi";
+import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/api/repostApi";
+import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/api/commentApi";
+import ModalUserItem from "../../profile/components/ModalUserItem";
+import RepostModal from "../../repost/components/RepostModal";
 import { useSelector, useDispatch } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
 import { toast } from "sonner";
-import { usePostView } from "../../../hooks/usePostView";
+import { usePostView } from "../hooks/usePostView";
 import confirmToast from "../../../components/common/confirmToast";
 function Post({
   id,

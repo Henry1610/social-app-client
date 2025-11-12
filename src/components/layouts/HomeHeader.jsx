@@ -3,7 +3,7 @@ import { Plus, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import InstagramLogo1 from "../common/InstagramLogo1";
 import CreatePostModal from "../../features/post/components/CreatePostModal";
-import { useGetNotificationsQuery } from "../../features/profile/profileApi";
+import { useGetNotificationsQuery } from "../../features/notification/api/notificationApi";
 
 const HomeHeader = () => {
   const navigate = useNavigate();

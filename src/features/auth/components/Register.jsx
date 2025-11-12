@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { useSendOtpMutation, useVerifyOtpAndRegisterMutation } from "./authApi";
-import { setCredentials } from "./authSlice";
-import FloatingInput from "../../components/common/FloatingInput";
-import SpriteCropped from "../../components/common/SpriteCropped";
+import { useSendOtpMutation, useVerifyOtpAndRegisterMutation } from "../api/authApi";
+import { setCredentials } from "../authSlice";
+import FloatingInput from "../../../components/common/FloatingInput";
+import SpriteCropped from "../../../components/common/SpriteCropped";
 import { toast } from "sonner";
 
 const Register = () => {

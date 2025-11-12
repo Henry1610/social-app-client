@@ -1,7 +1,7 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { NotificationCenter } from "../../components/common/NotificationCenter";
+import { NotificationCenter } from "../../features/notification/components/NotificationCenter";
 
 const Notifications = () => {
   const navigate = useNavigate();

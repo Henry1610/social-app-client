@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateAccessToken, logout } from './features/auth/authSlice';
-import { useRefreshTokenMutation } from './features/auth/authApi';
+import { useRefreshTokenMutation } from './features/auth/api/authApi';
 import AppRoutes from './routes';
 import './App.css';
 import './styles/sidebar.css';
 import InstagramSpinner from './components/common/InstagramSpinner';
-import NotificationToast from './components/common/NotificationToast';
+import NotificationToast from './features/notification/components/NotificationToast';
 import { useSocket } from './hooks/useSocket';
 
 function App() {

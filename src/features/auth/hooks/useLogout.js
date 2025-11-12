@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { useLogoutMutation } from './authApi';
-import { logout as logoutAction } from './authSlice';
-import { chatApi } from '../chat/chatApi';
-import { profileApi } from '../profile/profileApi';
-import { baseApi } from '../../services/api';
+import { useLogoutMutation } from '../api/authApi';
+import { logout as logoutAction } from '../authSlice';
+import { chatApi } from '../../chat/api/chatApi';
+import { profileApi } from '../../profile/api/profileApi';
+import { baseApi } from '../../../services/api';
 
 const useLogout = () => {
   const navigate = useNavigate();

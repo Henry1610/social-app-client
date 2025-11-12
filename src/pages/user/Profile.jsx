@@ -19,16 +19,16 @@ import {
   useUploadAvatarMutation,
   useGetUserPostsQuery,
   useUpdatePrivacySettingsMutation,
-} from "../../features/profile/profileApi";
-import { postApi, useGetSavedPostsQuery } from "../../features/post/postApi";
-import { useGetMyRepostsQuery } from "../../features/repost/repostApi";
+} from "../../features/profile/api/profileApi";
+import { postApi, useGetSavedPostsQuery } from "../../features/post/api/postApi";
+import { useGetMyRepostsQuery } from "../../features/repost/api/repostApi";
 
 import FollowButton from "../../features/profile/components/FollowButton";
 import ModalUserItem from "../../features/profile/components/ModalUserItem";
 import { ProfileSkeleton } from "../../components/common/skeletons";
-import PostGridItem from "../../features/profile/components/PostGridItem";
-import Post from "../../features/profile/components/Post";
-import PostDetailModal from "../../features/profile/components/PostDetailModal";
+import PostGridItem from "../../features/post/components/PostGridItem";
+import Post from "../../features/post/components/Post";
+import PostDetailModal from "../../features/post/components/PostDetailModal";
 import confirmToast from "../../components/common/confirmToast";
 import Footer from "../../components/layouts/Footer";
 import { ModalSkeleton } from "../../components/common/skeletons";

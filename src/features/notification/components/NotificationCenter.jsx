@@ -1,13 +1,13 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { selectCurrentUser } from "../../features/auth/authSlice";
+import { selectCurrentUser } from "../../auth/authSlice";
 import {
   useGetNotificationsQuery,
-} from "../../features/profile/profileApi";
+} from "../api/notificationApi";
 import { toast } from "sonner";
-import { formatTimeAgo } from "../../utils/formatTimeAgo";
-import { NotificationSkeleton } from "./skeletons";
+import { formatTimeAgo } from "../../../utils/formatTimeAgo";
+import { NotificationSkeleton } from "../../../components/common/skeletons";
 
 export const NotificationCenter = () => {
   const navigate = useNavigate();

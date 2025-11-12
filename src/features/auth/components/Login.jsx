@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { useLoginMutation } from "./authApi";
-import { setCredentials } from "./authSlice";
-import FacebookLoginButton from "../../components/common/FacebookLoginButton";
-import FloatingInput from "../../components/common/FloatingInput";
-import Divider from "../../components/common/Divider";
-import SpriteCropped from "../../components/common/SpriteCropped";
+import { useLoginMutation } from "../api/authApi";
+import { setCredentials } from "../authSlice";
+import FacebookLoginButton from "../../../components/common/FacebookLoginButton";
+import FloatingInput from "../../../components/common/FloatingInput";
+import Divider from "../../../components/common/Divider";
+import SpriteCropped from "../../../components/common/SpriteCropped";
 import { toast } from "sonner";
 
 const Login = () => {

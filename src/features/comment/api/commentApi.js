@@ -1,4 +1,4 @@
-import { baseApi } from '../../services/api';
+import { baseApi } from '../../../services/api';
 
 export const commentApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({

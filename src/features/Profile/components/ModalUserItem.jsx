@@ -6,7 +6,7 @@ import {
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
   useRemoveFollowerMutation
-} from "../profileApi";
+} from "../api/profileApi";
 import { toast } from "react-hot-toast";
 import FollowButton from "./FollowButton";
 import confirmToast from "../../../components/common/confirmToast";

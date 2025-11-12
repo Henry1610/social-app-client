@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Image, Play, ChevronLeft, ChevronRight, Plus, Maximize2, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { useCreatePostMutation, useUploadPostMediaMutation } from "../postApi";
+import { useCreatePostMutation, useUploadPostMediaMutation } from "../api/postApi";
 
 const CreatePostModal = ({ isOpen, onClose }) => {
   const aspectRatioMenuRef = useRef(null);

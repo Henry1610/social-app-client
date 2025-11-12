@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
-import { useGetPostByIdQuery, useUpdatePostMutation, useDeletePostMutation, postApi, useSavePostMutation, useUnsavePostMutation } from "../../post/postApi";
-import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/commentApi";
-import { useGetMyReactionQuery, useCreateOrUpdateReactionMutation, useGetReactionsQuery } from "../../reaction/reactionApi";
-import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/repostApi";
+import { useGetPostByIdQuery, useUpdatePostMutation, useDeletePostMutation, postApi, useSavePostMutation, useUnsavePostMutation } from "../api/postApi";
+import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/api/commentApi";
+import { useGetMyReactionQuery, useCreateOrUpdateReactionMutation, useGetReactionsQuery } from "../../reaction/api/reactionApi";
+import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/api/repostApi";
 import { Heart, MessageCircle, X, Settings, Send, CheckCircle, ChevronDown, MoreHorizontal, ChevronLeft, ChevronRight, Repeat2, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../../components/common/confirmToast";
-import RepostModal from "../../../components/common/RepostModal";
+import RepostModal from "../../repost/components/RepostModal";
 import { useDispatch } from "react-redux";
 
 const PostDetailModal = ({ 

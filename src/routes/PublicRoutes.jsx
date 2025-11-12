@@ -1,10 +1,10 @@
-import AuthCallback from "../features/auth/AuthCallback";
+import AuthCallback from "../features/auth/components/AuthCallback";
 
 // Auth pages
-import Login from "../features/auth/Login";
-import Register from "../features/auth/Register";
-import ForgotPassword from "../features/auth/ForgotPassword";
-import ResetPassword from '../features/auth/ResetPassword';
+import Login from "../features/auth/components/Login";
+import Register from "../features/auth/components/Register";
+import ForgotPassword from "../features/auth/components/ForgotPassword";
+import ResetPassword from '../features/auth/components/ResetPassword';
 
 const PublicRoutes =[
     { path: "login", component: Login },
