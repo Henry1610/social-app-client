@@ -48,25 +48,6 @@ function Home() {
     }
   };
 
-
-   // Mở post detail modal khi user click vào post
-   // Cập nhật URL với postId để có thể share link hoặc refresh không mất state
-  
-  const handleOpenPostModal = (postId) => {
-    const foundPost = posts.find(p => p.id === postId);
-    if (foundPost) {
-      // Nếu tìm thấy post trong danh sách, dùng luôn data đó
-      setSelectedPost(foundPost);
-      searchParams.set('postId', postId);
-      setSearchParams(searchParams, { replace: true });
-    } else {
-      // Nếu không tìm thấy, set postId để PostDetailModal fetch từ API
-      setSelectedPost({ id: postId });
-      searchParams.set('postId', postId);
-      setSearchParams(searchParams, { replace: true });
-    }
-  };
-
   return (
     <>
       <HomeHeader />
@@ -98,13 +79,14 @@ function Home() {
             key={post.id}
             id={post.id}
             user={{
+              id: post.userId || post.user?.id,
               username: post.user?.username || "unknown",
               fullName: post.user?.fullName || "",
               avatar: post.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg",
               verified: false, // TODO: Add verified field to user model if needed
             }}
             media={post.media?.map(m => ({
-              url: m.mediaUrl,
+              mediaUrl: m.mediaUrl,
               type: m.mediaType?.toLowerCase() || "image"
             })) || []}
             content={post.content || ""}
@@ -112,23 +94,25 @@ function Home() {
             likes={post.reactionCount || 0}
             commentsCount={post.commentCount || 0}
             repostsCount={post.repostsCount || 0}
-            savesCount={post.savesCount || 0}
             isLiked={post.isLiked || false}
-            isSaved={post.isSaved || false}
             isReposted={post.isReposted || false}
+            isSaved={post.isSaved || false}
             isRepost={post.isRepost || false}
+            whoCanSee={post.whoCanSee || "everyone"}
+            whoCanComment={post.whoCanComment || "everyone"}
             repostId={post.repostId || null}
             repostedBy={post.repostedBy || null}
             repostContent={post.repostContent || null}
-            originalLikes={post.originalReactionCount || 0}
-            originalCommentsCount={post.originalCommentCount || 0}
-            originalRepostsCount={post.originalRepostsCount || 0}
-            originalSavesCount={post.originalSavesCount || 0}
-            originalIsLiked={post.originalIsLiked || false}
-            originalIsSaved={post.originalIsSaved || false}
-            originalIsReposted={post.originalIsReposted || false}
-            originalCreatedAt={post.originalCreatedAt || null}
-            onOpenPostModal={handleOpenPostModal}
+            originalPost={post.isRepost ? {
+              likes: post.originalReactionCount || 0,
+              commentsCount: post.originalCommentCount || 0,
+              repostsCount: post.originalRepostsCount || 0,
+              savesCount: post.originalSavesCount || 0,
+              isLiked: post.originalIsLiked || false,
+              isSaved: post.originalIsSaved || false,
+              isReposted: post.originalIsReposted || false,
+              createdAt: post.originalCreatedAt || null,
+            } : null}
           />
         ))}
       </section>

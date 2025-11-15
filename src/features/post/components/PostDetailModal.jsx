@@ -1,18 +1,48 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
-import { useGetPostByIdQuery, useUpdatePostMutation, useDeletePostMutation, postApi, useSavePostMutation, useUnsavePostMutation } from "../api/postApi";
-import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/api/commentApi";
-import { useGetMyReactionQuery, useCreateOrUpdateReactionMutation, useGetReactionsQuery } from "../../reaction/api/reactionApi";
-import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/api/repostApi";
-import { Heart, MessageCircle, X, Settings, Send, CheckCircle, ChevronDown, MoreHorizontal, ChevronLeft, ChevronRight, Repeat2, Bookmark, BookmarkCheck } from "lucide-react";
+import {
+  useGetPostByIdQuery,
+  useUpdatePostMutation,
+  useDeletePostMutation,
+  postApi,
+  useSavePostMutation,
+  useUnsavePostMutation,
+} from "../api/postApi";
+import {
+  useGetCommentsByPostQuery,
+  useCreateCommentMutation,
+  useDeleteCommentMutation,
+} from "../../comment/api/commentApi";
+import {
+  useGetMyReactionQuery,
+  useCreateOrUpdateReactionMutation,
+  useGetReactionsQuery,
+} from "../../reaction/api/reactionApi";
+import {
+  useRepostPostMutation,
+  useUndoRepostMutation,
+} from "../../repost/api/repostApi";
+import {
+  X,
+  Send,
+  CheckCircle,
+  ChevronDown,
+  MoreHorizontal,
+  Settings,
+} from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../../components/common/confirmToast";
 import RepostModal from "../../repost/components/RepostModal";
 import { useDispatch } from "react-redux";
+import PostMediaViewer from "./PostMediaViewer";
+import PostHeader from "./PostHeader";
+import PostActions from "./PostActions";
+import { useNavigate } from "react-router-dom";
+import { formatTimeAgo } from "../../../utils/formatTimeAgo";
 
-const PostDetailModal = ({ 
-  postId, 
+const PostDetailModal = ({
+  postId,
   repostId,
   onClose,
   showSettingsMenu: externalShowSettingsMenu,
@@ -21,6 +51,7 @@ const PostDetailModal = ({
   setShowPrivacySettings: externalSetShowPrivacySettings,
 }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const currentUser = useSelector(selectCurrentUser);
   const [commentText, setCommentText] = useState("");
   const [privacySettings, setPrivacySettings] = useState({
@@ -29,7 +60,6 @@ const PostDetailModal = ({
   });
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
-  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
   const [isReposted, setIsReposted] = useState(false);
   const [showRepostModal, setShowRepostModal] = useState(false);
@@ -42,25 +72,22 @@ const PostDetailModal = ({
   });
 
   const selectedPostFull = fullPostData?.post;
-  const isPostOwner = selectedPostFull && currentUser?.id === selectedPostFull.userId;
+  const isPostOwner =
+    selectedPostFull && currentUser?.id === selectedPostFull.userId;
   const isRepost = !!repostId;
-
-  // Reset media index when post changes
-  useEffect(() => {
-    setCurrentMediaIndex(0);
-  }, [postId]);
-
+  console.log(selectedPostFull);
+  
   const {
     data: commentsData,
     isLoading: loadingComments,
     refetch: refetchComments,
   } = useGetCommentsByPostQuery(
-    { 
-      postId: isRepost ? undefined : (selectedPostFull?.id || 0), 
+    {
+      postId: isRepost ? undefined : selectedPostFull?.id || 0,
       repostId: isRepost ? repostId : undefined,
-      page: 1, 
-      limit: 10, 
-      sortBy: "desc" 
+      page: 1,
+      limit: 10,
+      sortBy: "desc",
     },
     { skip: !selectedPostFull?.id || (isRepost && !repostId) }
   );
@@ -73,7 +100,7 @@ const PostDetailModal = ({
     refetch: refetchMyReaction,
   } = useGetMyReactionQuery(
     {
-      targetId: isRepost ? repostId : (selectedPostFull?.id || 0),
+      targetId: isRepost ? repostId : selectedPostFull?.id || 0,
       targetType: isRepost ? "REPOST" : "POST",
     },
     { skip: !selectedPostFull?.id || (isRepost && !repostId) }
@@ -84,21 +111,24 @@ const PostDetailModal = ({
 
   // Fetch stats của repost nếu là repost
   const { data: repostReactions } = useGetReactionsQuery(
-    { targetId: repostId, targetType: 'REPOST' },
+    { targetId: repostId, targetType: "REPOST" },
     { skip: !isRepost || !repostId }
   );
 
   // Stats để hiển thị: nếu là repost thì dùng stats của repost, không thì dùng stats của post
-  const displayReactionCount = isRepost 
-    ? (repostReactions?.reactions?.length || 0) 
-    : (selectedPostFull?._count?.reactions || 0);
-  const displayCommentCount = isRepost 
-    ? (commentsData?.pagination?.totalComments || 0)
-    : (selectedPostFull?._count?.comments || 0);
+  const displayReactionCount = isRepost
+    ? repostReactions?.reactions?.length || 0
+    : selectedPostFull?._count?.reactions || 0;
+  const displayCommentCount = isRepost
+    ? commentsData?.pagination?.totalComments || 0
+    : selectedPostFull?._count?.comments || 0;
 
-  const [createOrUpdateReaction, { isLoading: isReacting }] = useCreateOrUpdateReactionMutation();
-  const [createComment, { isLoading: isCommenting }] = useCreateCommentMutation();
-  const [deleteComment, { isLoading: isDeletingComment }] = useDeleteCommentMutation();
+  const [createOrUpdateReaction, { isLoading: isReacting }] =
+    useCreateOrUpdateReactionMutation();
+  const [createComment, { isLoading: isCommenting }] =
+    useCreateCommentMutation();
+  const [deleteComment, { isLoading: isDeletingComment }] =
+    useDeleteCommentMutation();
   const [updatePost, { isLoading: isUpdatingPost }] = useUpdatePostMutation();
   const [deletePost, { isLoading: isDeletingPost }] = useDeletePostMutation();
   const [savePost, { isLoading: isSaving }] = useSavePostMutation();
@@ -109,14 +139,18 @@ const PostDetailModal = ({
   const [showDeleteMenu, setShowDeleteMenu] = useState(null);
   const deleteMenuRefs = useRef({});
 
-  const effectiveShowSettingsMenu = externalShowSettingsMenu !== undefined 
-    ? externalShowSettingsMenu 
-    : showSettingsMenu;
-  const effectiveSetShowSettingsMenu = externalSetShowSettingsMenu || setShowSettingsMenu;
-  const effectiveShowPrivacySettings = externalShowPrivacySettings !== undefined 
-    ? externalShowPrivacySettings 
-    : showPrivacySettings;
-  const effectiveSetShowPrivacySettings = externalSetShowPrivacySettings || setShowPrivacySettings;
+  const effectiveShowSettingsMenu =
+    externalShowSettingsMenu !== undefined
+      ? externalShowSettingsMenu
+      : showSettingsMenu;
+  const effectiveSetShowSettingsMenu =
+    externalSetShowSettingsMenu || setShowSettingsMenu;
+  const effectiveShowPrivacySettings =
+    externalShowPrivacySettings !== undefined
+      ? externalShowPrivacySettings
+      : showPrivacySettings;
+  const effectiveSetShowPrivacySettings =
+    externalSetShowPrivacySettings || setShowPrivacySettings;
 
   useEffect(() => {
     if (selectedPostFull) {
@@ -128,24 +162,33 @@ const PostDetailModal = ({
       });
       effectiveSetShowSettingsMenu(false);
       effectiveSetShowPrivacySettings(false);
-      
+
       // Check if post is saved
       if (selectedPostFull.isSaved !== undefined) {
         setIsSaved(selectedPostFull.isSaved);
       }
-      
+
       // Check if post is reposted
       if (selectedPostFull.isRepost !== undefined) {
         setIsReposted(selectedPostFull.isRepost);
       }
     }
-  }, [selectedPostFull, effectiveSetShowSettingsMenu, effectiveSetShowPrivacySettings]);
+  }, [
+    selectedPostFull,
+    effectiveSetShowSettingsMenu,
+    effectiveSetShowPrivacySettings,
+  ]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      const isClickInsideSettingsMenu = settingsMenuRef.current?.contains(event.target);
-      const isClickInsidePrivacySettings = privacySettingsRef.current?.contains(event.target);
-      const isClickInsideDeleteMenu = showDeleteMenu && 
+      const isClickInsideSettingsMenu = settingsMenuRef.current?.contains(
+        event.target
+      );
+      const isClickInsidePrivacySettings = privacySettingsRef.current?.contains(
+        event.target
+      );
+      const isClickInsideDeleteMenu =
+        showDeleteMenu &&
         deleteMenuRefs.current[showDeleteMenu]?.contains(event.target);
 
       if (!isClickInsideSettingsMenu && !isClickInsidePrivacySettings) {
@@ -158,14 +201,24 @@ const PostDetailModal = ({
       }
     };
 
-    if (effectiveShowSettingsMenu || effectiveShowPrivacySettings || showDeleteMenu) {
+    if (
+      effectiveShowSettingsMenu ||
+      effectiveShowPrivacySettings ||
+      showDeleteMenu
+    ) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [effectiveShowSettingsMenu, effectiveShowPrivacySettings, showDeleteMenu, effectiveSetShowSettingsMenu, effectiveSetShowPrivacySettings]);
+  }, [
+    effectiveShowSettingsMenu,
+    effectiveShowPrivacySettings,
+    showDeleteMenu,
+    effectiveSetShowSettingsMenu,
+    effectiveSetShowPrivacySettings,
+  ]);
 
   const handleUpdatePrivacy = async () => {
     if (!selectedPostFull || !isPostOwner) return;
@@ -192,7 +245,7 @@ const PostDetailModal = ({
   const handleSubmitComment = async (e) => {
     e?.stopPropagation();
     e?.preventDefault();
-    
+
     if (!commentText.trim() || !selectedPostFull || isCommenting) return;
 
     const content = commentText.trim();
@@ -215,8 +268,10 @@ const PostDetailModal = ({
 
   const handleDeleteComment = async (commentId) => {
     try {
-      const confirmed = await confirmToast("Bạn có chắc chắn muốn xóa bình luận này?");
-      
+      const confirmed = await confirmToast(
+        "Bạn có chắc chắn muốn xóa bình luận này?"
+      );
+
       if (!confirmed) {
         setShowDeleteMenu(null);
         return;
@@ -269,7 +324,9 @@ const PostDetailModal = ({
         await savePost(selectedPostFull.id).unwrap();
         toast.success("Đã lưu bài viết");
       }
-      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: selectedPostFull.id }]));
+      dispatch(
+        postApi.util.invalidateTags([{ type: "Post", id: selectedPostFull.id }])
+      );
     } catch (error) {
       setIsSaved(wasSaved);
       toast.error(error?.data?.message || "Có lỗi xảy ra");
@@ -287,7 +344,11 @@ const PostDetailModal = ({
       try {
         await undoRepost(selectedPostFull.id).unwrap();
         toast.success("Đã hủy đăng lại");
-        dispatch(postApi.util.invalidateTags([{ type: 'Post', id: selectedPostFull.id }]));
+        dispatch(
+          postApi.util.invalidateTags([
+            { type: "Post", id: selectedPostFull.id },
+          ])
+        );
       } catch (error) {
         setIsReposted(wasReposted);
         toast.error(error?.data?.message || "Có lỗi xảy ra");
@@ -305,11 +366,16 @@ const PostDetailModal = ({
     setIsReposted(true);
 
     try {
-      await repostPost({ postId: selectedPostFull.id, content: repostContent.trim() }).unwrap();
+      await repostPost({
+        postId: selectedPostFull.id,
+        content: repostContent.trim(),
+      }).unwrap();
       toast.success("Đã đăng lại bài viết");
       setShowRepostModal(false);
       setRepostContent("");
-      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: selectedPostFull.id }]));
+      dispatch(
+        postApi.util.invalidateTags([{ type: "Post", id: selectedPostFull.id }])
+      );
     } catch (error) {
       setIsReposted(wasReposted);
       toast.error(error?.data?.message || "Có lỗi xảy ra");
@@ -319,8 +385,10 @@ const PostDetailModal = ({
   const handleDeletePost = async () => {
     if (!selectedPostFull?.id) return;
 
-    const confirmed = await confirmToast("Bạn có chắc chắn muốn xóa bài viết này?");
-    
+    const confirmed = await confirmToast(
+      "Bạn có chắc chắn muốn xóa bài viết này?"
+    );
+
     if (confirmed) {
       try {
         await deletePost(selectedPostFull.id).unwrap();
@@ -336,11 +404,11 @@ const PostDetailModal = ({
     setCommentText("");
     effectiveSetShowSettingsMenu(false);
     effectiveSetShowPrivacySettings(false);
-    
+
     if (postId) {
-      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: postId }]));
+      dispatch(postApi.util.invalidateTags([{ type: "Post", id: postId }]));
     }
-    
+
     onClose();
   };
 
@@ -356,174 +424,89 @@ const PostDetailModal = ({
         style={{ maxHeight: "95vh", height: "95vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 flex items-center justify-center bg-black min-h-[800px] relative">
-          {selectedPostFull.media && selectedPostFull.media.length > 0 ? (
-            <>
-              {selectedPostFull.media[currentMediaIndex]?.mediaUrl ? (
-                <img
-                  src={selectedPostFull.media[currentMediaIndex].mediaUrl}
-                  alt={selectedPostFull.content || "Post"}
-                  className="w-full h-auto max-h-[95vh] object-contain"
-                  onError={(e) => {
-                    e.target.src = "/images/placeholder.png";
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500">
-                  <MessageCircle size={64} />
-                </div>
-              )}
-              
-              {/* Navigation arrows */}
-              {selectedPostFull.media.length > 1 && (
-                <>
-                  {currentMediaIndex > 0 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentMediaIndex(prev => prev - 1);
-                      }}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-gray-900" />
-                    </button>
-                  )}
-                  {currentMediaIndex < selectedPostFull.media.length - 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentMediaIndex(prev => prev + 1);
-                      }}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
-                    >
-                      <ChevronRight className="w-5 h-5 text-gray-900" />
-                    </button>
-                  )}
-                  
-                  {/* Dots indicator */}
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-1.5 z-40 mb-2">
-                    {selectedPostFull.media.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentMediaIndex(index);
-                        }}
-                        className={`w-2 h-2 rounded-full transition-all ${
-                          currentMediaIndex === index 
-                            ? "bg-white w-6" 
-                            : "bg-white/50 hover:bg-white/75"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-500">
-              <MessageCircle size={64} />
-            </div>
-          )}
-        </div>
+        <PostMediaViewer
+          media={selectedPostFull.media}
+          content={selectedPostFull.content}
+        />
         <div className="w-96 p-4 border-l border-gray-300 flex flex-col h-full">
-          <div className="flex flex-col gap-2  pb-4 border-b border-gray-300 flex-shrink-0">
-            <div className="flex items-center gap-3">
-            <img
-              src={
-                selectedPostFull.user?.avatarUrl ||
-                "/images/avatar-IG-mac-dinh-1.jpg"
-              }
-              alt={selectedPostFull.user?.username}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-              <div className="flex-1">
-                <span className="font-semibold">
-              {selectedPostFull.user?.username}
-            </span>
-                {selectedPostFull.createdAt && (
-                  <span className="text-xs text-gray-500 ml-2">
-                    {new Date(
-                      selectedPostFull.createdAt
-                    ).toLocaleDateString("vi-VN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                    })}
-                  </span>
-                )}
-              </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-              }}
-              className="p-1.5 hover:bg-gray-100 rounded-full transition"
-            >
-              <X size={20} className="text-gray-700" />
-            </button>
-            {isPostOwner && (
-              <div className="relative" ref={settingsMenuRef}>
+          <div className="flex flex-col pb-2 border-b border-gray-300 flex-shrink-0">
+            <div className="flex items-start justify-between mb-2">
+              <PostHeader
+                user={selectedPostFull.user}
+                createdAt={selectedPostFull.createdAt}
+                content={selectedPostFull.content}
+                isRepost={false}
+                onNavigate={navigate}
+                size="normal"
+              />
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    effectiveSetShowSettingsMenu(!effectiveShowSettingsMenu);
-                    effectiveSetShowPrivacySettings(false);
+                    handleClose();
                   }}
-                  className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100"
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition"
                 >
-                  •••
+                  <X size={20} className="text-gray-700" />
                 </button>
-                {effectiveShowSettingsMenu && (
-                  <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[250px] z-50">
+                {isPostOwner && (
+                  <div className="relative" ref={settingsMenuRef}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenPrivacySettings();
+                        effectiveSetShowSettingsMenu(!effectiveShowSettingsMenu);
+                        effectiveSetShowPrivacySettings(false);
                       }}
-                      className="w-full text-left px-5 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                      className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100"
                     >
-                      <Settings size={16} />
-                      Cài đặt quyền riêng tư
+                      •••
                     </button>
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        effectiveSetShowSettingsMenu(false);
-                        await handleDeletePost();
-                      }}
-                      disabled={isDeletingPost}
-                      className="w-full text-left px-5 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 disabled:opacity-50"
-                    >
-                      <X size={16} />
-                      Xóa bài viết
-                    </button>
+                    {effectiveShowSettingsMenu && (
+                      <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[250px] z-50">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenPrivacySettings();
+                          }}
+                          className="w-full text-left px-5 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <Settings size={16} />
+                          Cài đặt quyền riêng tư
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            effectiveSetShowSettingsMenu(false);
+                            await handleDeletePost();
+                          }}
+                          disabled={isDeletingPost}
+                          className="w-full text-left px-5 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <X size={16} />
+                          Xóa bài viết
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-              )}
             </div>
-            {selectedPostFull.content && (
-              <p className="text-sm ml-11">
-                {selectedPostFull.content}
-              </p>
-            )}
           </div>
-
-          <div className="flex-1 overflow-y-auto mb-4 flex flex-col min-h-0">
+          {/* List comments */}
+          <div className="flex-1 overflow-y-auto mb-4 flex flex-col min-h-0 mt-2">
             <div className="flex-1 overflow-y-auto">
               {loadingComments ? (
                 <div className="text-center py-4 text-gray-500 text-sm">
                   Đang tải bình luận...
                 </div>
               ) : comments.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {comments.map((comment) => {
                     const isCommentOwner = comment.userId === currentUser?.id;
                     return (
-                      <div 
-                        key={comment.id} 
-                        className="flex gap-3 group"
+                      <div
+                        key={comment.id}
+                        className="flex gap-2 group"
                         onMouseEnter={() => setHoveredCommentId(comment.id)}
                         onMouseLeave={() => {
                           if (showDeleteMenu !== comment.id) {
@@ -531,77 +514,83 @@ const PostDetailModal = ({
                           }
                         }}
                       >
-                      <img
-                        src={
-                          comment.user?.avatarUrl ||
-                          "/images/avatar-IG-mac-dinh-1.jpg"
-                        }
-                        alt={comment.user?.username}
-                        className="w-7 h-7 rounded-full flex-shrink-0 object-cover"
-                      />
-                        <div className="flex-1 relative">
-                        <div>
-                          <p className="text-sm">
-                            <span className="font-semibold text-gray-900">
+                        <img
+                          src={
+                            comment.user?.avatarUrl ||
+                            "/images/avatar-IG-mac-dinh-1.jpg"
+                          }
+                          alt={comment.user?.username}
+                          className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+                        />
+                        <div className="flex-1 relative min-w-0">
+                          <div className="">
+                            <span className="text-sm font-semibold text-gray-900">
                               {comment.user?.username}
                             </span>{" "}
-                            <span className="text-gray-700">
+                            <span className="text-sm text-gray-900">
                               {comment.content}
                             </span>
-                          </p>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {new Date(
-                            comment.createdAt
-                          ).toLocaleDateString("vi-VN", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          })}
-                          {comment._count?.replies > 0 && (
-                            <> • {comment._count.replies} phản hồi</>
-                          )}
-                        </p>
-                          {isCommentOwner && hoveredCommentId === comment.id && (
-                            <div className="absolute right-0 top-0">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowDeleteMenu(showDeleteMenu === comment.id ? null : comment.id);
-                                }}
-                                className="p-1 hover:bg-gray-100 rounded-full transition"
-                              >
-                                <MoreHorizontal size={16} className="text-gray-500" />
-                              </button>
-                              {showDeleteMenu === comment.id && (
-                                <div 
-                                  ref={(el) => {
-                                    if (el) {
-                                      deleteMenuRefs.current[comment.id] = el;
-                                    } else {
-                                      delete deleteMenuRefs.current[comment.id];
-                                    }
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{formatTimeAgo(comment.createdAt)}</span>
+                            {comment._count?.replies > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{comment._count.replies} phản hồi</span>
+                              </>
+                            )}
+                            
+                          </div>
+                          {isCommentOwner &&
+                            hoveredCommentId === comment.id && (
+                              <div className="absolute right-0 top-0">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowDeleteMenu(
+                                      showDeleteMenu === comment.id
+                                        ? null
+                                        : comment.id
+                                    );
                                   }}
-                                  className="absolute right-0 top-6 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[100] min-w-[120px]"
-                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-1 hover:bg-gray-100 rounded-full transition"
                                 >
-                                  <button
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      await handleDeleteComment(comment.id);
+                                  <MoreHorizontal
+                                    size={14}
+                                    className="text-gray-500"
+                                  />
+                                </button>
+                                {showDeleteMenu === comment.id && (
+                                  <div
+                                    ref={(el) => {
+                                      if (el) {
+                                        deleteMenuRefs.current[comment.id] = el;
+                                      } else {
+                                        delete deleteMenuRefs.current[
+                                          comment.id
+                                        ];
+                                      }
                                     }}
-                                    disabled={isDeletingComment}
-                                    type="button"
-                                    className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 disabled:opacity-50"
+                                    className="absolute right-0 top-6 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[100] min-w-[120px]"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <X size={14} />
-                                    Xóa
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        await handleDeleteComment(comment.id);
+                                      }}
+                                      disabled={isDeletingComment}
+                                      type="button"
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                      <X size={14} />
+                                      Xóa
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                         </div>
                       </div>
                     );
@@ -615,71 +604,28 @@ const PostDetailModal = ({
             </div>
           </div>
 
-          <div className="flex justify-between items-center gap-4 mb-3 text-gray-700 flex-shrink-0 border-b border-gray-300 pb-3">
-            <div className="flex gap-4">
-              <button
-                onClick={handleToggleLike}
-                disabled={isReacting || loadingMyReaction}
-                className={`flex items-center gap-1 transition ${
-                  isLiked
-                    ? "text-red-500 hover:text-red-600"
-                    : "hover:text-gray-900"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <Heart
-                  size={22}
-                  fill={isLiked ? "currentColor" : "none"}
-                  className="transition"
-                />
-              </button>
-              <MessageCircle
-                size={22}
-                className="hover:text-gray-900 cursor-pointer transition"
-              />
-              {!isRepost && (
-                <button
-                  onClick={handleToggleRepost}
-                  disabled={isReposting || isUndoingRepost}
-                  className={`flex items-center gap-1 transition ${
-                    isReposted
-                      ? "text-green-500 hover:text-green-600"
-                      : "hover:text-gray-900"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <Repeat2
-                    size={22}
-                    fill={isReposted ? "currentColor" : "none"}
-                    className="transition"
-                  />
-                </button>
-              )}
-            </div>
-            {!isRepost && (
-              <button
-                onClick={handleToggleSave}
-                disabled={isSaving || isUnsaving}
-                className={`flex items-center gap-1 transition ${
-                  isSaved
-                    ? "text-blue-500 hover:text-blue-600"
-                    : "hover:text-gray-900"
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isSaved ? (
-                  <BookmarkCheck size={22} className="transition" />
-                ) : (
-                  <Bookmark size={22} className="transition" />
-                )}
-              </button>
-            )}
+          <div className="mb-3 flex-shrink-0 border-b border-gray-300 pb-3">
+            <PostActions
+              isLiked={isLiked}
+              isReposted={isReposted}
+              isSaved={isSaved}
+              isReacting={isReacting || loadingMyReaction}
+              isReposting={isReposting || isUndoingRepost}
+              isSaving={isSaving || isUnsaving}
+              onToggleLike={handleToggleLike}
+              onToggleRepost={handleToggleRepost}
+              onToggleSave={handleToggleSave}
+              showRepost={!isRepost}
+              showSave={!isRepost}
+              size={22}
+            />
           </div>
 
           <div className="text-sm text-gray-700 flex justify-between mb-3 flex-shrink-0">
             <p className="font-semibold text-gray-900">
               {displayReactionCount} lượt thích
             </p>
-            <p className="text-gray-600">
-              {displayCommentCount} bình luận
-            </p>
+            <p className="text-gray-600">{displayCommentCount} bình luận</p>
           </div>
 
           <div className="flex-shrink-0">
@@ -690,8 +636,7 @@ const PostDetailModal = ({
             >
               <img
                 src={
-                  currentUser?.avatarUrl ||
-                  "/images/avatar-IG-mac-dinh-1.jpg"
+                  currentUser?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"
                 }
                 alt={currentUser?.username}
                 className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
@@ -752,16 +697,24 @@ const PostDetailModal = ({
                       onClick={(e) => e.stopPropagation()}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
                     >
-                      <option value="everyone">Công khai - Mọi người có thể xem</option>
-                      <option value="followers">Người theo dõi - Chỉ người theo dõi bạn</option>
-                      <option value="nobody">Riêng tư - Chỉ bạn mới thấy</option>
+                      <option value="everyone">
+                        Công khai - Mọi người có thể xem
+                      </option>
+                      <option value="followers">
+                        Người theo dõi - Chỉ người theo dõi bạn
+                      </option>
+                      <option value="nobody">
+                        Riêng tư - Chỉ bạn mới thấy
+                      </option>
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500 mb-1.5">Ai có thể bình luận?</p>
+                  <p className="text-xs text-gray-500 mb-1.5">
+                    Ai có thể bình luận?
+                  </p>
                   <div className="relative">
                     <select
                       value={privacySettings.whoCanComment}
@@ -775,9 +728,15 @@ const PostDetailModal = ({
                       onClick={(e) => e.stopPropagation()}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer pr-8"
                     >
-                      <option value="everyone">Mọi người - Ai cũng có thể bình luận</option>
-                      <option value="followers">Người theo dõi - Chỉ người theo dõi bạn</option>
-                      <option value="nobody">Tắt - Không ai có thể bình luận</option>
+                      <option value="everyone">
+                        Mọi người - Ai cũng có thể bình luận
+                      </option>
+                      <option value="followers">
+                        Người theo dõi - Chỉ người theo dõi bạn
+                      </option>
+                      <option value="nobody">
+                        Tắt - Không ai có thể bình luận
+                      </option>
                     </select>
                     <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
@@ -810,7 +769,8 @@ const PostDetailModal = ({
                       effectiveSetShowPrivacySettings(false);
                       setPrivacySettings({
                         whoCanSee: selectedPostFull.whoCanSee || "everyone",
-                        whoCanComment: selectedPostFull.whoCanComment || "everyone",
+                        whoCanComment:
+                          selectedPostFull.whoCanComment || "everyone",
                       });
                     }}
                     className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition"
@@ -842,4 +802,3 @@ const PostDetailModal = ({
 };
 
 export default PostDetailModal;
-

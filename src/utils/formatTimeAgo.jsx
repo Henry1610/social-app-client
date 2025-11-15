@@ -7,11 +7,17 @@ export function formatTimeAgo(dateString) {
     const diffMin = Math.floor(diffSec / 60);
     const diffHour = Math.floor(diffMin / 60);
     const diffDay = Math.floor(diffHour / 24);
+    const diffWeek = Math.floor(diffDay / 7);
+    const diffMonth = Math.floor(diffDay / 30);
+    const diffYear = Math.floor(diffDay / 365);
   
     if (diffMin < 1) return "Vừa xong";
     if (diffMin < 60) return `${diffMin} phút trước`;
     if (diffHour < 24) return `${diffHour} giờ trước`;
     if (diffDay < 7) return `${diffDay} ngày trước`;
+    if (diffWeek < 4) return `${diffWeek} tuần`;
+    if (diffMonth < 12) return `${diffMonth} tháng`;
+    if (diffYear >= 1) return `${diffYear} năm`;
   
     // Nếu quá 7 ngày thì hiển thị ngày/tháng/năm cụ thể
     return date.toLocaleDateString("vi-VN", {

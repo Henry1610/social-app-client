@@ -157,43 +157,61 @@ export default function Profile() {
     }));
   }, [savedPostsData?.items]);
 
-  // Lấy reposts (chỉ khi là profile của chính mình)
   const { data: repostsData, isLoading: loadingReposts } = useGetMyRepostsQuery(
     { username: viewingUsername },
-    { skip: !isSelf || activeTab !== "reposts" || !viewingUsername }
+    { 
+      skip: 
+        activeTab !== "reposts" || 
+        !viewingUsername ||
+        (profileUser && !isSelf && isPrivate && !followStatus?.isFollowing)
+    }
   );
 
   const reposts = useMemo(() => {
     if (!repostsData?.reposts) return [];
-    return repostsData.reposts.map(repost => ({
-      ...repost.post,
-      previewImage: repost.post.media?.[0]?.mediaUrl || null,
-      previewMediaType: repost.post.media?.[0]?.mediaType || null,
-      // Stats của repost (reaction và comment của chính repost)
-      repostReactionCount: repost.reactionCount || 0,
-      repostCommentCount: repost.commentCount || 0,
-      // Trạng thái tương tác của chính repost (từ API)
-      isLiked: repost.isLiked || false,
-      isSaved: repost.isSaved || false,
-      isReposted: repost.isReposted || false,
-      // Stats của bài gốc (từ API, có fallback về _count nếu cần)
-      originalReactionCount: repost.post.originalReactionCount ?? repost.post._count?.reactions ?? 0,
-      originalCommentCount: repost.post.originalCommentCount ?? repost.post._count?.comments ?? 0,
-      originalRepostsCount: repost.post.originalRepostsCount ?? repost.post._count?.reposts ?? 0,
-      originalSavesCount: repost.post.originalSavesCount ?? repost.post._count?.savedPosts ?? 0,
-      // Trạng thái tương tác của bài gốc (từ API)
-      originalIsLiked: repost.post.originalIsLiked ?? false,
-      originalIsSaved: repost.post.originalIsSaved ?? false,
-      originalIsReposted: repost.post.originalIsReposted ?? false,
-      // Thời gian của bài gốc
-      originalCreatedAt: repost.post.originalCreatedAt ?? repost.post.createdAt ?? null,
-      // Thông tin repost
-      isRepost: true,
-      repostedBy: repost.user,
-      repostContent: repost.content,
-      repostCreatedAt: repost.createdAt,
-      repostId: repost.id,
-    }));
+    return repostsData.reposts.map(repost => {
+      const isOriginalPostDeleted = repost.isOriginalPostDeleted || false;
+      const originalPost = repost.post;
+      
+      return {
+        // ID của post gốc (luôn cần để dùng cho originalPost actions)
+        id: originalPost?.id || repost.postId,
+        // Chỉ spread post data nếu post không bị xóa hoặc ẩn
+        ...(isOriginalPostDeleted ? {} : (originalPost || {})),
+        previewImage: isOriginalPostDeleted ? null : (originalPost?.media?.[0]?.mediaUrl || null),
+        previewMediaType: isOriginalPostDeleted ? null : (originalPost?.media?.[0]?.mediaType || null),
+        // Stats của repost (reaction và comment của chính repost)
+        repostReactionCount: repost.reactionCount || 0,
+        repostCommentCount: repost.commentCount || 0,
+        // Trạng thái tương tác của chính repost (từ API)
+        isLiked: repost.isLiked || false,
+        isSaved: repost.isSaved || false,
+        isReposted: repost.isReposted || false,
+        // Stats của bài gốc (từ API, có fallback về _count nếu cần)
+        originalReactionCount: isOriginalPostDeleted ? 0 : (originalPost?.originalReactionCount ?? originalPost?._count?.reactions ?? 0),
+        originalCommentCount: isOriginalPostDeleted ? 0 : (originalPost?.originalCommentCount ?? originalPost?._count?.comments ?? 0),
+        originalRepostsCount: isOriginalPostDeleted ? 0 : (originalPost?.originalRepostsCount ?? originalPost?._count?.reposts ?? 0),
+        originalSavesCount: isOriginalPostDeleted ? 0 : (originalPost?.originalSavesCount ?? originalPost?._count?.savedPosts ?? 0),
+        // Trạng thái tương tác của bài gốc (từ API)
+        originalIsLiked: isOriginalPostDeleted ? false : (originalPost?.originalIsLiked ?? false),
+        originalIsSaved: isOriginalPostDeleted ? false : (originalPost?.originalIsSaved ?? false),
+        originalIsReposted: isOriginalPostDeleted ? false : (originalPost?.originalIsReposted ?? false),
+        // Thời gian của bài gốc
+        originalCreatedAt: isOriginalPostDeleted ? null : (originalPost?.originalCreatedAt ?? originalPost?.createdAt ?? null),
+        // Thông tin repost
+        isRepost: true,
+        repostedBy: repost.user,
+        repostContent: repost.content,
+        repostCreatedAt: repost.createdAt,
+        repostId: repost.id,
+        // Đánh dấu post gốc bị xóa hoặc ẩn
+        isOriginalPostDeleted,
+        // User và media của post gốc (chỉ khi không bị xóa hoặc ẩn) - override các giá trị từ spread
+        user: isOriginalPostDeleted ? null : originalPost?.user,
+        media: isOriginalPostDeleted ? [] : (originalPost?.media || []),
+        content: isOriginalPostDeleted ? null : (originalPost?.content || null),
+      };
+    });
   }, [repostsData?.reposts]);
 
   // Mở post modal khi có postId trong URL
@@ -431,29 +449,27 @@ export default function Profile() {
               >
                 <Grid size={20} /> Posts
               </button>
+              <button
+                onClick={() => setActiveTab("reposts")}
+                className={`flex items-center gap-2 text-sm font-semibold uppercase tracking-wider transition ${
+                  activeTab === "reposts"
+                    ? "text-gray-900 border-t-2 border-gray-900 -mt-[18px] pt-4"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                <Repeat2 size={20} /> Đã đăng lại
+              </button>
               {isSelf && (
-                <>
-                  <button
-                    onClick={() => setActiveTab("reposts")}
-                    className={`flex items-center gap-2 text-sm font-semibold uppercase tracking-wider transition ${
-                      activeTab === "reposts"
-                        ? "text-gray-900 border-t-2 border-gray-900 -mt-[18px] pt-4"
-                        : "text-gray-600 hover:text-gray-800"
-                    }`}
-                  >
-                    <Repeat2 size={20} /> Đã đăng lại
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("saved")}
-                    className={`flex items-center gap-2 text-sm font-semibold uppercase tracking-wider transition ${
-                      activeTab === "saved"
-                        ? "text-gray-900 border-t-2 border-gray-900 -mt-[18px] pt-4"
-                        : "text-gray-600 hover:text-gray-800"
-                    }`}
-                  >
-                    <BookmarkCheck size={20} /> Đã lưu
-                  </button>
-                </>
+                <button
+                  onClick={() => setActiveTab("saved")}
+                  className={`flex items-center gap-2 text-sm font-semibold uppercase tracking-wider transition ${
+                    activeTab === "saved"
+                      ? "text-gray-900 border-t-2 border-gray-900 -mt-[18px] pt-4"
+                      : "text-gray-600 hover:text-gray-800"
+                  }`}
+                >
+                  <BookmarkCheck size={20} /> Đã lưu
+                </button>
               )}
             </div>
 
@@ -495,14 +511,14 @@ export default function Profile() {
                 </>
               )}
 
-              {activeTab === "reposts" && isSelf && (
+              {activeTab === "reposts" && (
                 <>
                   {loadingReposts ? (
                     <div className="text-center py-8">
                       <p className="text-gray-500">Đang tải bài viết đã đăng lại...</p>
                     </div>
                   ) : reposts.length > 0 ? (
-                    <div className="space-y-6 animate-fadeIn">
+                    <div className="space-y-6 animate-fadeIn mb-16">
                       {reposts.map((post) => (
                         <Post
                           key={`repost-${post.id}-${post.repostCreatedAt}`}
@@ -514,7 +530,7 @@ export default function Profile() {
                             verified: false,
                           }}
                           media={post.media?.map(m => ({
-                            url: m.mediaUrl,
+                            mediaUrl: m.mediaUrl,
                             type: m.mediaType?.toLowerCase() || "image"
                           })) || []}
                           content={post.content || ""}
@@ -522,27 +538,22 @@ export default function Profile() {
                           likes={post.repostReactionCount || 0}
                           commentsCount={post.repostCommentCount || 0}
                           isLiked={post.isLiked ?? false}
-                          isSaved={post.isSaved ?? false}
                           isReposted={post.isReposted ?? false}
+                          isSaved={post.isSaved ?? false}
                           isRepost={true}
                           repostId={post.repostId || null}
                           repostedBy={post.repostedBy || null}
                           repostContent={post.repostContent || null}
-                          originalLikes={post.originalReactionCount ?? 0}
-                          originalCommentsCount={post.originalCommentCount ?? 0}
-                          originalRepostsCount={post.originalRepostsCount ?? 0}
-                          originalSavesCount={post.originalSavesCount ?? 0}
-                          originalIsLiked={post.originalIsLiked ?? false}
-                          originalIsSaved={post.originalIsSaved ?? false}
-                          originalIsReposted={post.originalIsReposted ?? false}
-                          originalCreatedAt={post.originalCreatedAt ?? null}
-                          onOpenPostModal={(postId) => {
-                            const foundPost = reposts.find(p => p.id === postId);
-                            if (foundPost) {
-                              setSelectedPost(foundPost);
-                              setShowSettingsMenu(false);
-                              setShowPrivacySettings(false);
-                            }
+                          originalPost={{
+                            likes: post.originalReactionCount ?? 0,
+                            commentsCount: post.originalCommentCount ?? 0,
+                            repostsCount: post.originalRepostsCount ?? 0,
+                            savesCount: post.originalSavesCount ?? 0,
+                            isLiked: post.originalIsLiked ?? false,
+                            isSaved: post.originalIsSaved ?? false,
+                            isReposted: post.originalIsReposted ?? false,
+                            createdAt: post.originalCreatedAt ?? null,
+                            isDeleted: post.isOriginalPostDeleted ?? false,
                           }}
                         />
                       ))}

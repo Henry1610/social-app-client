@@ -1,4 +1,5 @@
 import { baseApi } from '../../../services/api';
+import { profileApi } from '../../profile/api/profileApi';
 
 export const postApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -9,6 +10,21 @@ export const postApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
+      async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
+        const currentUsername = getState().auth?.user?.username;
+        
+        try {
+          await queryFulfilled;
+          // Invalidate getUserPosts để profile page tự động cập nhật
+          if (currentUsername) {
+            dispatch(
+              profileApi.util.invalidateTags([
+                { type: 'User', id: `posts-${currentUsername}` }
+              ])
+            );
+          }
+        } catch {}
+      },
       invalidatesTags: ['Post'],
     }),
 
@@ -44,7 +60,11 @@ export const postApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Post', { type: 'Post', id: 'LIST' }, { type: 'User', id: 'LIST' }],
+      // Chỉ invalidate tag cụ thể của post đó, không invalidate toàn bộ feed
+      // Feed sẽ được update thủ công bằng updateQueryData để tránh mất dữ liệu
+      invalidatesTags: (result, error, { postId }) => [
+        { type: 'Post', id: postId }
+      ],
     }),
 
     // Xóa bài viết
@@ -53,7 +73,22 @@ export const postApi = baseApi.injectEndpoints({
         url: `/user/posts/${postId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Post', { type: 'Post', id: 'LIST' }, { type: 'User', id: 'LIST' }],
+      async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
+        const currentUsername = getState().auth?.user?.username;
+        
+        try {
+          await queryFulfilled;
+          // Invalidate getUserPosts để profile page tự động cập nhật
+          if (currentUsername) {
+            dispatch(
+              profileApi.util.invalidateTags([
+                { type: 'User', id: `posts-${currentUsername}` }
+              ])
+            );
+          }
+        } catch {}
+      },
+      invalidatesTags: ['Post'],
     }),
 
     // Đánh dấu bài viết đã xem

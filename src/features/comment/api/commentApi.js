@@ -19,8 +19,6 @@ export const commentApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (result, error, { postId, repostId }) => [
         { type: 'Comment', id: postId || repostId },
-        { type: 'Post', id: 'LIST' },
-        { type: 'User', id: 'LIST' },
       ],
     }),
     
@@ -59,7 +57,6 @@ export const commentApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (result, error, { postId, repostId }) => [
         { type: 'Comment', id: postId || repostId },
-        { type: 'Post', id: 'LIST' },
       ],
     }),
   }),

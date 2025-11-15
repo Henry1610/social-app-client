@@ -1,4 +1,4 @@
-import { MessageCircle, Heart, Repeat2 } from "lucide-react";
+import { MessageCircle, Heart, Repeat2, Bookmark } from "lucide-react";
 
 const PostGridItem = ({ post, onClick }) => {
   const previewImage = post.previewImage;
@@ -7,6 +7,8 @@ const PostGridItem = ({ post, onClick }) => {
   // Stats của repost (nếu là repost) hoặc stats thông thường
   const likeCount = isRepost ? (post.repostReactionCount || 0) : (post.reactionCount || 0);
   const commentCount = isRepost ? (post.repostCommentCount || 0) : (post.commentCount || 0);
+  const repostsCount = post.repostsCount || 0;
+  const savesCount = post.savesCount || 0;
 
   return (
     <div
@@ -46,6 +48,14 @@ const PostGridItem = ({ post, onClick }) => {
           <div className="flex items-center gap-1">
             <MessageCircle size={20} />
             <span className="text-sm">{commentCount}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Repeat2 size={20} />
+            <span className="text-sm">{repostsCount}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Bookmark size={20} fill="currentColor" />
+            <span className="text-sm">{savesCount}</span>
           </div>
         </div>
       </div>

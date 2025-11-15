@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Repeat2, X, Bookmark, BookmarkCheck, Send, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import PostMediaViewer from "./PostMediaViewer";
+import PostActions from "./PostActions";
 import { useGetReactionsQuery, useCreateOrUpdateReactionMutation } from "../../reaction/api/reactionApi";
-import { postApi, useSavePostMutation, useUnsavePostMutation } from "../api/postApi";
+import { postApi, useSavePostMutation, useUnsavePostMutation, useUpdatePostMutation } from "../api/postApi";
 import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/api/repostApi";
 import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/api/commentApi";
-import ModalUserItem from "../../profile/components/ModalUserItem";
 import RepostModal from "../../repost/components/RepostModal";
+import LikesModal from "../../reaction/components/LikesModal";
+import CommentsModal from "../../comment/components/CommentsModal";
+import PostHeader from "./PostHeader";
+import OriginalPostContent from "./OriginalPostContent";
+import PostSettingsMenu from "./PostSettingsMenu";
 import { useSelector, useDispatch } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
 import { toast } from "sonner";
@@ -18,41 +23,63 @@ function Post({
   media = [],
   content = "",
   createdAt,
+  // Stats và interactions của post/repost hiện tại
   likes: initialLikes = 0,
   commentsCount = 0,
   repostsCount = 0,
-  savesCount = 0,
   isLiked: initialIsLiked = false,
-  isSaved: initialIsSaved = false,
+  // Lưu ý: isSaved và isReposted chỉ dùng cho post thường
+  // Nếu có originalPost (là repost), thì isSaved/isReposted của repost wrapper không được dùng
   isReposted: initialIsReposted = false,
+  isSaved: initialIsSaved = false,
+  // Thông tin repost (nếu là repost)
   isRepost = false,
   repostId = null,
   repostedBy = null,
   repostContent = null,
-  originalLikes = 0,
-  originalCommentsCount = 0,
-  originalRepostsCount = 0,
-  originalSavesCount = 0,
-  originalIsLiked: initialOriginalIsLiked = false,
-  originalIsSaved: initialOriginalIsSaved = false,
-  originalIsReposted: initialOriginalIsReposted = false,
-  originalCreatedAt = null,
-  onOpenPostModal,
+  // Thông tin bài gốc (nếu là repost)
+  // Nếu có originalPost, nghĩa là đây là repost và isRepost sẽ tự động = true
+  originalPost = null,
+  // Privacy settings (chỉ cho post thường, không phải repost)
+  whoCanSee = "everyone",
+  whoCanComment = "everyone",
 }) {
-  const [showLikesModal, setShowLikesModal] = useState(false);
-  const [showCommentsModal, setShowCommentsModal] = useState(false);
-  const [showRepostModal, setShowRepostModal] = useState(false);
-  const [showOriginalCommentsModal, setShowOriginalCommentsModal] = useState(false);
-  const [showOriginalLikesModal, setShowOriginalLikesModal] = useState(false);
-  const [showOriginalRepostModal, setShowOriginalRepostModal] = useState(false);
+  // Tự động detect isRepost nếu có originalPost
+  const isRepostMode = isRepost || !!originalPost;
+  
+  // Destructure originalPost nếu có
+  const {
+    likes: originalLikes = 0,
+    commentsCount: originalCommentsCount = 0,
+    repostsCount: originalRepostsCount = 0,
+    savesCount: originalSavesCount = 0,
+    isLiked: initialOriginalIsLiked = false,
+    isSaved: initialOriginalIsSaved = false,
+    isReposted: initialOriginalIsReposted = false,
+    createdAt: originalCreatedAt = null,
+    isDeleted: isOriginalPostDeleted = false,
+  } = originalPost || {};
+  // Gộp tất cả modal states thành một object
+  const [modals, setModals] = useState({
+    likes: false,
+    comments: false,
+    originalLikes: false,
+    originalComments: false,
+    originalRepost: false,
+    settings: false,
+  });
+
+  // Helper functions để mở/đóng modal
+  const openModal = (modalName) => setModals(prev => ({ ...prev, [modalName]: true }));
+  const closeModal = (modalName) => setModals(prev => ({ ...prev, [modalName]: false }));
+  
   const [newRepostContent, setNewRepostContent] = useState("");
-  const [originalRepostContent, setOriginalRepostContent] = useState("");
   const [commentText, setCommentText] = useState("");
   const [originalCommentText, setOriginalCommentText] = useState("");
   const [localIsLiked, setLocalIsLiked] = useState(initialIsLiked);
   const [localLikesCount, setLocalLikesCount] = useState(initialLikes);
-  const [localIsSaved, setLocalIsSaved] = useState(initialIsSaved);
   const [localIsReposted, setLocalIsReposted] = useState(initialIsReposted);
+  const [localIsSaved, setLocalIsSaved] = useState(initialIsSaved);
   const [localCommentsCount, setLocalCommentsCount] = useState(commentsCount);
   
   // State cho bài gốc trong repost
@@ -61,49 +88,49 @@ function Post({
   const [originalIsSaved, setOriginalIsSaved] = useState(initialOriginalIsSaved);
   const [originalIsReposted, setOriginalIsReposted] = useState(initialOriginalIsReposted);
   const [originalCommentsCountLocal, setOriginalCommentsCountLocal] = useState(originalCommentsCount);
-  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const currentUser = useSelector(selectCurrentUser);
   
   // Dùng repostId nếu là repost, không thì dùng id (postId)
-  const targetId = isRepost && repostId ? repostId : id;
-  const targetType = isRepost ? "REPOST" : "POST";
-  const commentTargetId = isRepost && repostId ? repostId : id;
-  const isRepostComment = isRepost && repostId;
+  const targetId = isRepostMode && repostId ? repostId : id;
+  const targetType = isRepostMode ? "REPOST" : "POST";
+  const commentTargetId = isRepostMode && repostId ? repostId : id;
+  const isRepostComment = isRepostMode && repostId;
 
   // Track post/repost view khi scroll qua
   // Nếu là repost, track với repostId; nếu là post, track với id
-  const postViewRef = usePostView(isRepost ? null : id, isRepost ? repostId : null, true, 0.3, 1000); // Track khi 30% visible, delay 1s
+  const postViewRef = usePostView(isRepostMode ? null : id, isRepostMode ? repostId : null, true, 0.3, 1000); // Track khi 30% visible, delay 1s
 
   const { data: reactionsData, isLoading: loadingReactions } = useGetReactionsQuery(
     { targetId, targetType },
-    { skip: !showLikesModal || !targetId }
+    { skip: !modals.likes || !targetId }
   );
 
   const [createOrUpdateReaction, { isLoading: isReacting }] = useCreateOrUpdateReactionMutation();
   const [savePost, { isLoading: isSaving }] = useSavePostMutation();
   const [unsavePost, { isLoading: isUnsaving }] = useUnsavePostMutation();
   const [repostPost, { isLoading: isReposting }] = useRepostPostMutation();
+  const [updatePost, { isLoading: isUpdatingPrivacy }] = useUpdatePostMutation();
   const [undoRepost, { isLoading: isUndoingRepost }] = useUndoRepostMutation();
   const [createComment, { isLoading: isCommenting }] = useCreateCommentMutation();
   const [deleteComment, { isLoading: isDeletingComment }] = useDeleteCommentMutation();
   
   const { data: commentsData, isLoading: loadingComments, refetch: refetchComments } = useGetCommentsByPostQuery(
     { postId: isRepostComment ? null : commentTargetId, repostId: isRepostComment ? commentTargetId : null, page: 1, limit: 50, sortBy: "desc" },
-    { skip: !showCommentsModal || !commentTargetId }
+    { skip: !modals.comments || !commentTargetId }
   );
   
   // Comments cho bài gốc trong repost
   const { data: originalCommentsData, isLoading: loadingOriginalComments, refetch: refetchOriginalComments } = useGetCommentsByPostQuery(
-    { postId: isRepost ? id : null, repostId: null, page: 1, limit: 50, sortBy: "desc" },
-    { skip: !showOriginalCommentsModal || !isRepost || !id }
+    { postId: isRepostMode ? id : null, repostId: null, page: 1, limit: 50, sortBy: "desc" },
+    { skip: !modals.originalComments || !isRepostMode || !id }
   );
   
   // Reactions cho bài gốc trong repost
   const { data: originalReactionsData, isLoading: loadingOriginalReactions } = useGetReactionsQuery(
     { targetId: id, targetType: "POST" },
-    { skip: !showOriginalLikesModal || !isRepost || !id }
+    { skip: !modals.originalLikes || !isRepostMode || !id }
   );
   
   const comments = commentsData?.comments || [];
@@ -115,207 +142,183 @@ function Post({
   useEffect(() => {
     setLocalIsLiked(initialIsLiked);
     setLocalLikesCount(initialLikes);
-    setLocalIsSaved(initialIsSaved);
     setLocalIsReposted(initialIsReposted);
+    setLocalIsSaved(initialIsSaved);
     setLocalCommentsCount(commentsCount);
     
     // Sync state cho bài gốc
-    if (isRepost) {
+    if (isRepostMode) {
       setOriginalIsLiked(initialOriginalIsLiked);
       setOriginalLikesCount(originalLikes);
       setOriginalIsSaved(initialOriginalIsSaved);
       setOriginalIsReposted(initialOriginalIsReposted);
       setOriginalCommentsCountLocal(originalCommentsCount);
     }
-  }, [initialIsLiked, initialLikes, initialIsSaved, initialIsReposted, commentsCount, isRepost, initialOriginalIsLiked, originalLikes, initialOriginalIsSaved, initialOriginalIsReposted, originalCommentsCount]);
+  }, [initialIsLiked, initialLikes, initialIsReposted, initialIsSaved, commentsCount, isRepostMode, initialOriginalIsLiked, originalLikes, initialOriginalIsSaved, initialOriginalIsReposted, originalCommentsCount]);
 
   const isLiked = localIsLiked;
-  const isSaved = localIsSaved;
   const isReposted = localIsReposted;
   const isSavingPost = isSaving || isUnsaving;
   const isRepostingPost = isReposting || isUndoingRepost;
 
-  const handleSubmitComment = async (e) => {
+  // Handler chung cho submit comment
+  const handleSubmitComment = async (e, isOriginal = false) => {
     e?.stopPropagation();
     e?.preventDefault();
     
-    if (!commentText.trim() || (!id && !repostId) || isCommenting) return;
+    // Lấy text và validation tương ứng
+    const currentCommentText = isOriginal ? originalCommentText : commentText;
+    const setCurrentCommentText = isOriginal ? setOriginalCommentText : setCommentText;
+    
+    // Validation
+    if (!currentCommentText.trim() || isCommenting) return;
+    if (isOriginal && !id) return;
+    if (!isOriginal && (!id && !repostId)) return;
 
-    const content = commentText.trim();
-    setCommentText("");
+    const content = currentCommentText.trim();
+    setCurrentCommentText("");
+
+    // Xác định postId và repostId
+    const currentPostId = isOriginal ? id : (isRepostComment ? null : commentTargetId);
+    const currentRepostId = isOriginal ? null : (isRepostComment ? commentTargetId : null);
 
     try {
       await createComment({
-        postId: isRepostComment ? null : commentTargetId,
-        repostId: isRepostComment ? commentTargetId : null,
+        postId: currentPostId,
+        repostId: currentRepostId,
         content,
       }).unwrap();
 
       toast.success("Đã thêm bình luận");
-      setLocalCommentsCount(prev => prev + 1);
-      refetchComments();
+      
+      // Update count và refetch tương ứng
+      if (isOriginal) {
+        setOriginalCommentsCountLocal(prev => prev + 1);
+        refetchOriginalComments();
+      } else {
+        setLocalCommentsCount(prev => prev + 1);
+        refetchComments();
+      }
     } catch (error) {
       toast.error(error?.data?.message || "Thêm bình luận thất bại");
-      setCommentText(content);
+      setCurrentCommentText(content);
     }
   };
 
-  const handleToggleLike = async (e) => {
+  const handleToggleLike = async (e, isOriginal = false) => {
     e?.stopPropagation();
-    if (!targetId || isReacting) return;
+    
+    // Xác định targetId và targetType dựa trên isOriginal
+    const currentTargetId = isOriginal ? id : targetId;
+    const currentTargetType = isOriginal ? "POST" : targetType;
+    
+    if (!currentTargetId || isReacting) return;
+
+    // Lấy state tương ứng
+    const currentIsLiked = isOriginal ? originalIsLiked : isLiked;
+    const currentLikeCount = isOriginal ? originalLikesCount : localLikesCount;
+    const setCurrentIsLiked = isOriginal ? setOriginalIsLiked : setLocalIsLiked;
+    const setCurrentLikeCount = isOriginal ? setOriginalLikesCount : setLocalLikesCount;
 
     // Nếu đang unlike, cần xác nhận
-    if (isLiked) {
+    if (currentIsLiked) {
       const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ thích bài viết này?");
       if (!confirm) return;
     }
 
-    // Optimistic update - lưu giá trị cũ để revert nếu có lỗi
-    const wasLiked = isLiked;
-    const oldLikeCount = localLikesCount;
+    // Optimistic update
+    const wasLiked = currentIsLiked;
+    const oldLikeCount = currentLikeCount;
     const newLikeCount = wasLiked ? oldLikeCount - 1 : oldLikeCount + 1;
-    setLocalIsLiked(!wasLiked);
-    setLocalLikesCount(newLikeCount);
+    setCurrentIsLiked(!wasLiked);
+    setCurrentLikeCount(newLikeCount);
 
     try {
       await createOrUpdateReaction({
-        targetId,
-        targetType,
+        targetId: currentTargetId,
+        targetType: currentTargetType,
         type: "LIKE",
       }).unwrap();
-
-      // Không invalidate feed để tránh post biến mất
-      // Chỉ cập nhật local state, không cần refetch feed
     } catch (error) {
       // Revert optimistic update nếu có lỗi
-      setLocalIsLiked(wasLiked);
-      setLocalLikesCount(oldLikeCount);
+      setCurrentIsLiked(wasLiked);
+      setCurrentLikeCount(oldLikeCount);
       toast.error(error?.data?.message || "Có lỗi xảy ra");
     }
   };
-
-  const handleToggleSave = async (e) => {
-    e?.stopPropagation();
-    if (!id || isSavingPost) return;
-
-    // Nếu đang unsave, cần xác nhận
-    if (isSaved) {
-      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ lưu bài viết này?");
-      if (!confirm) return;
-    }
-
-    // Optimistic update
-    const wasSaved = isSaved;
-    setLocalIsSaved(!wasSaved);
-
-    try {
-      if (wasSaved) {
-        await unsavePost(id).unwrap();
-        toast.success("Đã bỏ lưu bài viết");
-      } else {
-        await savePost(id).unwrap();
-        toast.success("Đã lưu bài viết");
-      }
-
-      // Không invalidate feed để tránh post biến mất
-      // Chỉ invalidate post cụ thể nếu cần
-      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: id }]));
-    } catch (error) {
-      // Revert optimistic update nếu có lỗi
-      setLocalIsSaved(wasSaved);
-      toast.error(error?.data?.message || "Có lỗi xảy ra");
-    }
-  };
-
+  
+  // Handler cho toggle repost (chỉ repost bài gốc - id)
   const handleToggleRepost = async (e) => {
     e?.stopPropagation();
     if (!id || isRepostingPost) return;
 
+    // Lấy trạng thái repost: nếu là repost thì dùng originalIsReposted, nếu là post thường thì dùng isReposted
+    const currentIsReposted = isRepostMode ? originalIsReposted : isReposted;
+    const setCurrentIsReposted = isRepostMode ? setOriginalIsReposted : setLocalIsReposted;
+
     // Nếu đã repost rồi thì hủy repost
-    if (isReposted) {
+    if (currentIsReposted) {
       const confirm = await confirmToast("Bạn có chắc chắn muốn hủy đăng lại bài viết này?");
       if (!confirm) return;
 
-      const wasReposted = isReposted;
-      setLocalIsReposted(false);
+      const wasReposted = currentIsReposted;
+      setCurrentIsReposted(false);
 
       try {
         await undoRepost(id).unwrap();
         toast.success("Đã hủy đăng lại");
-        // Không invalidate feed để tránh post biến mất
         dispatch(postApi.util.invalidateTags([{ type: 'Post', id: id }]));
       } catch (error) {
-        setLocalIsReposted(wasReposted);
+        setCurrentIsReposted(wasReposted);
         toast.error(error?.data?.message || "Có lỗi xảy ra");
       }
       return;
     }
 
     // Nếu chưa repost thì mở modal để nhập content
-    setShowRepostModal(true);
+    openModal('originalRepost');
   };
 
+  // Handler cho confirm repost (chỉ repost bài gốc - id)
   const handleConfirmRepost = async () => {
     if (!id || isRepostingPost) return;
 
-    const wasReposted = isReposted;
-    setLocalIsReposted(true);
+    // Lấy trạng thái repost: nếu là repost thì dùng originalIsReposted, nếu là post thường thì dùng isReposted
+    const currentIsReposted = isRepostMode ? originalIsReposted : isReposted;
+    const setCurrentIsReposted = isRepostMode ? setOriginalIsReposted : setLocalIsReposted;
+
+    const wasReposted = currentIsReposted;
+    setCurrentIsReposted(true);
 
     try {
       await repostPost({ postId: id, content: newRepostContent.trim() }).unwrap();
       toast.success("Đã đăng lại bài viết");
-      setShowRepostModal(false);
+      closeModal('originalRepost');
       setNewRepostContent("");
-      // Không invalidate feed để tránh post biến mất
       dispatch(postApi.util.invalidateTags([{ type: 'Post', id: id }]));
     } catch (error) {
-      setLocalIsReposted(wasReposted);
+      setCurrentIsReposted(wasReposted);
       toast.error(error?.data?.message || "Có lỗi xảy ra");
     }
   };
 
-  // Handlers cho bài gốc trong repost
-  const handleOriginalToggleLike = async (e) => {
-    e?.stopPropagation();
-    if (!id || isReacting) return;
-
-    // Nếu đang unlike, cần xác nhận
-    if (originalIsLiked) {
-      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ thích bài viết này?");
-      if (!confirm) return;
-    }
-
-    const wasLiked = originalIsLiked;
-    const oldLikeCount = originalLikesCount;
-    const newLikeCount = wasLiked ? oldLikeCount - 1 : oldLikeCount + 1;
-    setOriginalIsLiked(!wasLiked);
-    setOriginalLikesCount(newLikeCount);
-
-    try {
-      await createOrUpdateReaction({
-        targetId: id,
-        targetType: "POST",
-        type: "LIKE",
-      }).unwrap();
-    } catch (error) {
-      setOriginalIsLiked(wasLiked);
-      setOriginalLikesCount(oldLikeCount);
-      toast.error(error?.data?.message || "Có lỗi xảy ra");
-    }
-  };
-
-  const handleOriginalToggleSave = async (e) => {
+  // Handler chung cho toggle save (dùng cho cả post thường và bài gốc trong repost)
+  const handleToggleSave = async (e, isOriginal = false) => {
     e?.stopPropagation();
     if (!id || isSavingPost) return;
 
+    // Lấy state tương ứng
+    const currentIsSaved = isOriginal ? originalIsSaved : localIsSaved;
+    const setCurrentIsSaved = isOriginal ? setOriginalIsSaved : setLocalIsSaved;
+
     // Nếu đang unsave, cần xác nhận
-    if (originalIsSaved) {
+    if (currentIsSaved) {
       const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ lưu bài viết này?");
       if (!confirm) return;
     }
 
-    const wasSaved = originalIsSaved;
-    setOriginalIsSaved(!wasSaved);
+    const wasSaved = currentIsSaved;
+    setCurrentIsSaved(!wasSaved);
 
     try {
       if (wasSaved) {
@@ -327,456 +330,179 @@ function Post({
       }
       dispatch(postApi.util.invalidateTags([{ type: 'Post', id: id }]));
     } catch (error) {
-      setOriginalIsSaved(wasSaved);
+      setCurrentIsSaved(wasSaved);
       toast.error(error?.data?.message || "Có lỗi xảy ra");
     }
   };
 
-  const handleOriginalToggleRepost = async (e) => {
-    e?.stopPropagation();
-    if (!id || isRepostingPost) return;
 
-    if (originalIsReposted) {
-      const confirm = await confirmToast("Bạn có chắc chắn muốn hủy đăng lại bài viết này?");
+  // Handler để cập nhật privacy settings
+  const handleUpdatePrivacy = async (privacySettings) => {
+    if (!id || isRepostMode) return; // Chỉ cho phép chỉnh sửa post thường, không phải repost
+
+    try {
+      await updatePost({
+        postId: id,
+        privacySettings,
+      }).unwrap();
+      
+      // Cập nhật cache của feed trực tiếp thay vì invalidate để tránh mất dữ liệu
+      dispatch(
+        postApi.util.updateQueryData('getFeedPosts', { page: 1, limit: 20 }, (draft) => {
+          if (draft?.posts) {
+            const postIndex = draft.posts.findIndex(p => p.id === id);
+            if (postIndex !== -1) {
+              draft.posts[postIndex] = {
+                ...draft.posts[postIndex],
+                whoCanSee: privacySettings.whoCanSee || draft.posts[postIndex].whoCanSee,
+                whoCanComment: privacySettings.whoCanComment || draft.posts[postIndex].whoCanComment,
+              };
+            }
+          }
+        })
+      );
+      
+      toast.success("Đã cập nhật quyền riêng tư");
+    } catch (error) {
+      toast.error(error?.data?.message || "Cập nhật quyền riêng tư thất bại");
+    }
+  };
+
+  // Handler chung cho xóa comment
+  const handleDeleteComment = async (commentId, isOriginal = false) => {
+    try {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn xóa bình luận này?");
       if (!confirm) return;
 
-      const wasReposted = originalIsReposted;
-      setOriginalIsReposted(false);
+      // Xác định postId và repostId tương ứng
+      const currentPostId = isOriginal ? id : (isRepostComment ? null : commentTargetId);
+      const currentRepostId = isOriginal ? null : (isRepostComment ? commentTargetId : null);
 
-      try {
-        await undoRepost(id).unwrap();
-        toast.success("Đã hủy đăng lại");
-        dispatch(postApi.util.invalidateTags([{ type: 'Post', id: id }]));
-      } catch (error) {
-        setOriginalIsReposted(wasReposted);
-        toast.error(error?.data?.message || "Có lỗi xảy ra");
+      await deleteComment({
+        commentId,
+        postId: currentPostId,
+        repostId: currentRepostId,
+      }).unwrap();
+
+      toast.success("Đã xóa bình luận");
+      
+      // Update count và refetch tương ứng
+      if (isOriginal) {
+        setOriginalCommentsCountLocal(prev => Math.max(0, prev - 1));
+        refetchOriginalComments();
+      } else {
+        setLocalCommentsCount(prev => Math.max(0, prev - 1));
+        refetchComments();
       }
-      return;
-    }
-
-    setShowOriginalRepostModal(true);
-  };
-
-  const handleConfirmOriginalRepost = async () => {
-    if (!id || isRepostingPost) return;
-
-    const wasReposted = originalIsReposted;
-    setOriginalIsReposted(true);
-
-    try {
-      await repostPost({ postId: id, content: originalRepostContent.trim() }).unwrap();
-      toast.success("Đã đăng lại bài viết");
-      setShowOriginalRepostModal(false);
-      setOriginalRepostContent("");
-      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: id }]));
-    } catch (error) {
-      setOriginalIsReposted(wasReposted);
-      toast.error(error?.data?.message || "Có lỗi xảy ra");
-    }
-  };
-
-  const handleSubmitOriginalComment = async (e) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    
-    if (!originalCommentText.trim() || !id || isCommenting) return;
-
-    const content = originalCommentText.trim();
-    setOriginalCommentText("");
-
-    try {
-      await createComment({
-        postId: id,
-        repostId: null,
-        content,
-      }).unwrap();
-
-      toast.success("Đã thêm bình luận");
-      setOriginalCommentsCountLocal(prev => prev + 1);
-      refetchOriginalComments();
-    } catch (error) {
-      toast.error(error?.data?.message || "Thêm bình luận thất bại");
-      setOriginalCommentText(content);
-    }
-  };
-
-  const handleDeleteComment = async (commentId) => {
-    try {
-      const confirm = await confirmToast("Bạn có chắc chắn muốn xóa bình luận này?");
-      if (!confirm) return;
-
-      await deleteComment({
-        commentId,
-        postId: isRepostComment ? null : commentTargetId,
-        repostId: isRepostComment ? commentTargetId : null,
-      }).unwrap();
-
-      toast.success("Đã xóa bình luận");
-      setLocalCommentsCount(prev => Math.max(0, prev - 1));
-      refetchComments();
     } catch (error) {
       toast.error(error?.data?.message || "Xóa bình luận thất bại");
     }
   };
 
-  const handleDeleteOriginalComment = async (commentId) => {
-    try {
-      const confirm = await confirmToast("Bạn có chắc chắn muốn xóa bình luận này?");
-      if (!confirm) return;
-
-      await deleteComment({
-        commentId,
-        postId: id,
-        repostId: null,
-      }).unwrap();
-
-      toast.success("Đã xóa bình luận");
-      setOriginalCommentsCountLocal(prev => Math.max(0, prev - 1));
-      refetchOriginalComments();
-    } catch (error) {
-      toast.error(error?.data?.message || "Xóa bình luận thất bại");
-    }
-  };
-
-  const timeAgo = (date) => {
-    const diff = (new Date() - new Date(date)) / 1000; // giây
-    if (diff < 60) return `${Math.floor(diff)}s`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)} ngày`;
-  };
 
   return (
-    <article ref={postViewRef} className="mb-6 border-b border-gray-200 max-w-[500px] mx-auto">
+    <article ref={postViewRef} className="mb-6 border-b border-gray-200 max-w-[500px] mx-auto ">
       {/* Post Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <img
-            src={isRepost && repostedBy ? (repostedBy.avatarUrl || repostedBy.avatar || "/images/avatar-IG-mac-dinh-1.jpg") : (user?.avatar || "/images/avatar-IG-mac-dinh-1.jpg")}
-            alt={isRepost && repostedBy ? repostedBy.username : user?.username}
-            className="w-8 h-8 rounded-full object-cover"
-          />
-          <div className="flex flex-col">
-            {isRepost && repostedBy ? (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => navigate(`/${repostedBy.username}`)}
-                  className="font-semibold text-sm hover:underline"
-                >
-                  {repostedBy.username}
-                </button>
-                <Repeat2 size={14} className="text-gray-500" />
-                <span className="text-gray-500 text-sm">
-                  • {timeAgo(createdAt)}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => navigate(`/${user?.username}`)}
-                  className="font-semibold text-sm hover:underline"
-                >
-                  {user?.username}
-                </button>
-                {user?.verified && (
-                  <svg
-                    className="w-3 h-3 text-blue-500 fill-current"
-                    viewBox="0 0 40 40"
-                  >
-                    <path d="M19.998 3.094L14.638 0l-2.972 5.15H5.432v6.354L0 14.64 3.094 20 0 25.359l5.432 3.137v5.905h5.975L14.638 40l5.36-3.094L25.358 40l3.232-5.6h6.162v-6.01L40 25.359 36.905 20 40 14.641l-5.248-3.03v-6.46h-6.419L25.358 0l-5.36 3.094Zm7.415 11.225 2.254 2.287-11.43 11.5-6.835-6.93 2.244-2.258 4.587 4.581 9.18-9.18Z" />
-                  </svg>
-                )}
-                <span className="text-gray-500 text-sm">
-                  • {timeAgo(createdAt)}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        <button className="text-gray-600 hover:text-gray-800">
-          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="5" r="1.5" />
-            <circle cx="12" cy="12" r="1.5" />
-            <circle cx="12" cy="19" r="1.5" />
-          </svg>
-        </button>
+      <div className="flex items-start justify-between mb-2">
+        <PostHeader
+          user={user}
+          createdAt={createdAt}
+          content={!isRepostMode ? content : repostContent}
+          isRepost={isRepostMode}
+          repostedBy={repostedBy}
+          onNavigate={navigate}
+          size="normal"
+        />
+        {/* Menu chỉnh sửa - chỉ hiển thị cho post của chính user và không phải repost */}
+        {/* Lưu ý: user.id là id từ user object trong post, cần kiểm tra với currentUser */}
+        {currentUser?.id && user.id && currentUser.id === user.id && !isRepostMode && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openModal('settings');
+            }}
+            className="text-gray-600 hover:text-gray-800 flex-shrink-0"
+          >
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="1.5" />
+              <circle cx="12" cy="12" r="1.5" />
+              <circle cx="12" cy="19" r="1.5" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Repost Layout */}
-      {isRepost && repostedBy ? (
-        <>
-          {/* Repost Content */}
-          {repostContent && (
-            <div className="mb-3 text-sm text-gray-700">{repostContent}</div>
-          )}
-          
-          {/* Original Post - Nằm trong khung */}
-          <div className="border border-gray-300 rounded-lg p-3 mb-3">
-            <div className="flex gap-2 mb-2">
-              <img
-                src={user?.avatar || "/images/avatar-IG-mac-dinh-1.jpg"}
-                alt={user?.username}
-                className="w-6 h-6 rounded-full flex-shrink-0 object-cover"
-              />
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => navigate(`/${user?.username}`)}
-                  className="text-sm font-semibold hover:underline"
-                >
-                  {user?.username}
-                </button>
-                <span className="text-gray-500 text-sm">
-                  • {timeAgo(originalCreatedAt || createdAt)}
-                </span>
-              </div>
-            </div>
-            {content && (
-              <p className="text-sm mb-2">{content}</p>
-            )}
-            {media.length > 0 && (
-              <div className="mt-2">
-                {media[0].type === 'video' ? (
-                  <video
-                    src={media[0].url}
-                    className="w-full aspect-square object-cover rounded-md"
-                    controls
-                  />
-                ) : (
-                  <img
-                    src={media[0].url}
-                    alt="Post media"
-                    className="w-full aspect-square object-cover rounded-md"
-                  />
-                )}
-              </div>
-            )}
-            
-            {/* Action buttons cho bài gốc */}
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-              <div className="flex items-center gap-2 text-gray-700">
-                <button
-                  onClick={handleOriginalToggleLike}
-                  disabled={isReacting}
-                  className={`transition ${
-                    originalIsLiked
-                      ? "text-red-500 hover:text-red-600"
-                      : "hover:text-gray-900"
-                  } ${isReacting ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <Heart
-                    size={18}
-                    fill={originalIsLiked ? "currentColor" : "none"}
-                    className="transition"
-                  />
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowOriginalCommentsModal(true);
-                  }}
-                  className="hover:text-gray-900 transition"
-                >
-                  <MessageCircle size={18} />
-                </button>
-                <button
-                  onClick={handleOriginalToggleRepost}
-                  disabled={isRepostingPost}
-                  className={`transition ${
-                    originalIsReposted
-                      ? "text-green-500 hover:text-green-600"
-                      : "hover:text-gray-900"
-                  } ${isRepostingPost ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <Repeat2
-                    size={18}
-                    fill={originalIsReposted ? "currentColor" : "none"}
-                    className="transition"
-                  />
-                </button>
-              </div>
-              <button
-                onClick={handleOriginalToggleSave}
-                disabled={isSavingPost}
-                className={`transition ${
-                  originalIsSaved
-                    ? "text-blue-500 hover:text-blue-600"
-                    : "hover:text-gray-500"
-                } ${isSavingPost ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {originalIsSaved ? (
-                  <BookmarkCheck size={18} className="transition" />
-                ) : (
-                  <Bookmark size={18} className="transition" />
-                )}
-              </button>
-            </div>
-
-            {/* Stats của bài gốc */}
-            {(originalLikesCount > 0 || originalCommentsCountLocal > 0 || originalSavesCount > 0 || originalRepostsCount > 0) && (
-              <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
-                {originalLikesCount > 0 && (
-                  <button
-                    onClick={() => setShowOriginalLikesModal(true)}
-                    className="font-semibold hover:underline cursor-pointer"
-                  >
-                    {originalLikesCount.toLocaleString()} lượt thích
-                  </button>
-                )}
-                {originalCommentsCountLocal > 0 && (
-                  <button
-                    onClick={() => setShowOriginalCommentsModal(true)}
-                    className="hover:underline cursor-pointer"
-                  >
-                    {originalCommentsCountLocal.toLocaleString()} bình luận
-                  </button>
-                )}
-                {originalSavesCount > 0 && (
-                  <span>{originalSavesCount.toLocaleString()} lượt lưu</span>
-                )}
-                {originalRepostsCount > 0 && (
-                  <span>{originalRepostsCount.toLocaleString()} lượt đăng lại</span>
-                )}
-              </div>
-            )}
-          </div>
-        </>
+      {isRepostMode && repostedBy ? (
+        <OriginalPostContent
+          user={isOriginalPostDeleted ? null : user}
+          content={isOriginalPostDeleted ? null : content}
+          media={isOriginalPostDeleted ? [] : media}
+          createdAt={isOriginalPostDeleted ? null : (originalCreatedAt || createdAt)}
+          likesCount={originalLikesCount}
+          commentsCount={originalCommentsCountLocal}
+          savesCount={originalSavesCount}
+          repostsCount={originalRepostsCount}
+          isLiked={originalIsLiked}
+          isSaved={originalIsSaved}
+          isReposted={originalIsReposted}
+          isReacting={isReacting}
+          isSaving={isSavingPost}
+          isReposting={isRepostingPost}
+          onToggleLike={(e) => handleToggleLike(e, true)}
+          onToggleSave={(e) => handleToggleSave(e, true)}
+          onToggleRepost={handleToggleRepost}
+          onOpenComments={(e) => {
+            e?.stopPropagation();
+            openModal('originalComments');
+          }}
+          onOpenLikes={() => openModal('originalLikes')}
+          navigate={navigate}
+          isDeleted={isOriginalPostDeleted}
+        />
       ) : (
         <>
-          {/* Normal Post Content */}
-          {content && (
-            <p className="text-sm mb-3">{content}</p>
-          )}
-          
           {/* Post Image / Carousel */}
           {media.length > 0 && (
-            <div className="relative mb-3 mx-auto">
-              <img
-                src={media[currentMediaIndex].url}
-                alt="post"
-                className="w-full aspect-square object-cover rounded-md"
+            <div className="mb-3 mx-auto w-full aspect-square rounded-md overflow-hidden relative">
+              <PostMediaViewer
+                media={media}
+                content={content}
+                className="!flex-none w-full h-full rounded-md"
               />
-              {media.length > 1 && (
-                <>
-                  {/* Navigation arrows */}
-                  {currentMediaIndex > 0 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentMediaIndex(prev => prev - 1);
-                      }}
-                      className="absolute left-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all z-10"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-gray-900" />
-                    </button>
-                  )}
-                  {currentMediaIndex < media.length - 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentMediaIndex(prev => prev + 1);
-                      }}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all z-10"
-                    >
-                      <ChevronRight className="w-4 h-4 text-gray-900" />
-                    </button>
-                  )}
-                  
-                  {/* Dots indicator */}
-                  <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-1">
-                    {media.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentMediaIndex(i);
-                        }}
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
-                          i === currentMediaIndex ? "bg-blue-500 w-4" : "bg-gray-400"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
             </div>
           )}
         </>
       )}
 
-      {/* Post Actions */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-gray-700">
-          <button
-            onClick={handleToggleLike}
-            disabled={isReacting}
-            className={`transition ${
-              isLiked
-                ? "text-red-500 hover:text-red-600"
-                : "hover:text-gray-900"
-            } ${isReacting ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            <Heart
-              size={22}
-              fill={isLiked ? "currentColor" : "none"}
-              className="transition"
-            />
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowCommentsModal(true);
-            }}
-            className="hover:text-gray-900 transition"
-          >
-            <MessageCircle size={22} />
-          </button>
-          {!isRepost && (
-            <button
-              onClick={handleToggleRepost}
-              disabled={isRepostingPost}
-              className={`transition ${
-                isReposted
-                  ? "text-green-500 hover:text-green-600"
-                  : "hover:text-gray-900"
-              } ${isRepostingPost ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              <Repeat2
-                size={22}
-                fill={isReposted ? "currentColor" : "none"}
-                className="transition"
-              />
-            </button>
-          )}
-        </div>
-        {!isRepost && (
-          <button
-            onClick={handleToggleSave}
-            disabled={isSavingPost}
-            className={`flex items-center gap-1 transition ${
-              isSaved
-                ? "text-blue-500 hover:text-blue-600"
-                : "hover:text-gray-500"
-            } ${isSavingPost ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            {isSaved ? (
-              <BookmarkCheck size={22} className="transition" />
-            ) : (
-              <Bookmark size={22} className="transition" />
-            )}
-            {savesCount > 0 && (
-              <span className="text-sm font-medium">
-                {savesCount.toLocaleString()}
-              </span>
-            )}
-          </button>
-        )}
+      {/* Post Actions - Cho post thường hoặc repost wrapper */}
+      {/* Lưu ý: Repost wrapper không có nút save và repost (chỉ có like và comment) */}
+      <div className="mb-2">
+        <PostActions
+          isLiked={isLiked}
+          isReposted={isReposted}
+          isSaved={!isRepostMode ? localIsSaved : false}
+          isReacting={isReacting}
+          isReposting={isRepostingPost}
+          isSaving={isSavingPost}
+          onToggleLike={handleToggleLike}
+          onOpenComments={(e) => {
+            e?.stopPropagation();
+            openModal('comments');
+          }}
+          onToggleRepost={!isRepostMode ? handleToggleRepost : undefined}
+          onToggleSave={!isRepostMode ? handleToggleSave : undefined}
+          showRepost={!isRepostMode}
+          showSave={!isRepostMode}
+          size={22}
+        />
       </div>
 
       {/* Likes */}
       {localLikesCount > 0 && (
         <div className="mb-1">
           <button
-            onClick={() => setShowLikesModal(true)}
+            onClick={() => openModal('likes')}
             className="font-semibold text-sm hover:underline cursor-pointer"
           >
             {localLikesCount.toLocaleString()} lượt thích
@@ -789,9 +515,9 @@ function Post({
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            setShowCommentsModal(true);
+            openModal('comments');
           }}
-          className="text-gray-500 text-sm mb-3 hover:underline cursor-pointer"
+          className="text-gray-500 text-sm mb-1 hover:underline cursor-pointer"
         >
           Xem tất cả {localCommentsCount} bình luận
         </button>
@@ -799,16 +525,16 @@ function Post({
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            setShowCommentsModal(true);
+            openModal('comments');
           }}
-          className="text-gray-500 text-sm mb-3 hover:underline cursor-pointer"
+          className="text-gray-500 text-sm mb-1 hover:underline cursor-pointer"
         >
           Thêm bình luận đầu tiên
         </button>
       )}
 
       {/* Reposts Count */}
-      {!isRepost && repostsCount > 0 && (
+      {!isRepostMode && repostsCount > 0 && (
         <div className="mb-3">
           <span className="text-gray-500 text-sm">
             {repostsCount.toLocaleString()} lượt đăng lại
@@ -817,396 +543,100 @@ function Post({
       )}
 
       {/* Modal danh sách người thích */}
-      {showLikesModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg min-h-[400px] max-h-[80vh] flex flex-col">
-            {/* Header */}
-            <div className="flex justify-between items-center pt-2 px-2">
-              <div className="w-6"></div>
-              <h3 className="text-base font-semibold">Người đã thích</h3>
-              <button
-                onClick={() => setShowLikesModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-full"
-              >
-                <X size={24} className="text-gray-600" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto">
-              {loadingReactions ? (
-                <div className="text-center py-10 text-gray-500">
-                  Đang tải...
-                </div>
-              ) : reactions.length > 0 ? (
-                <div>
-                  {reactions.map((reaction) => (
-                    <ModalUserItem
-                      key={`${reaction.userId}-${reaction.id}`}
-                      user={reaction.user}
-                      currentUserId={currentUser?.id}
-                      onClose={() => setShowLikesModal(false)}
-                      isFollower={false}
-                      isSelfProfile={false}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-10 text-gray-500">
-                  Chưa có ai thích bài viết này
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Repost Modal */}
-      <RepostModal
-        isOpen={showRepostModal}
-        onClose={() => {
-          setShowRepostModal(false);
-          setNewRepostContent("");
-        }}
-        content={newRepostContent}
-        onContentChange={setNewRepostContent}
-        onConfirm={handleConfirmRepost}
-        isLoading={isRepostingPost}
+      <LikesModal
+        isOpen={modals.likes}
+        onClose={() => closeModal('likes')}
+        reactions={reactions}
+        isLoading={loadingReactions}
+        currentUserId={currentUser?.id}
       />
 
-      {/* Comments Modal */}
-      {showCommentsModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowCommentsModal(false);
-              setCommentText("");
-            }
+      {/* Repost Modal - chỉ hiển thị khi không phải repost (post thường) */}
+      {!isRepostMode && (
+        <RepostModal
+          isOpen={modals.originalRepost}
+          onClose={() => {
+            closeModal('originalRepost');
+            setNewRepostContent("");
           }}
-        >
-          <div
-            className="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold">Bình luận</h3>
-              <button
-                onClick={() => {
-                  setShowCommentsModal(false);
-                  setCommentText("");
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Comments List */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {loadingComments ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Đang tải bình luận...
-                </div>
-              ) : comments.length > 0 ? (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3 group">
-                      <img
-                        src={
-                          comment.user?.avatarUrl ||
-                          "/images/avatar-IG-mac-dinh-1.jpg"
-                        }
-                        alt={comment.user?.username}
-                        className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                      />
-                      <div className="flex-1">
-                        <div className="bg-gray-100 rounded-lg p-3 relative">
-                          <p className="text-sm">
-                            <span className="font-semibold text-gray-900">
-                              {comment.user?.username}
-                            </span>{" "}
-                            <span className="text-gray-700">
-                              {comment.content}
-                            </span>
-                          </p>
-                          {comment.userId === currentUser?.id && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteComment(comment.id);
-                              }}
-                              disabled={isDeletingComment}
-                              className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded-full transition-opacity disabled:opacity-50"
-                              title="Xóa bình luận"
-                            >
-                              <Trash2 size={14} className="text-red-500" />
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(comment.createdAt).toLocaleDateString("vi-VN", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          })}
-                          {comment._count?.replies > 0 && (
-                            <> • {comment._count.replies} phản hồi</>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Chưa có bình luận nào
-                </div>
-              )}
-            </div>
-
-            {/* Comment Input */}
-            <div className="p-4 border-t border-gray-200">
-              <form
-                onSubmit={handleSubmitComment}
-                className="flex gap-2 items-center"
-              >
-                <img
-                  src={
-                    currentUser?.avatarUrl ||
-                    "/images/avatar-IG-mac-dinh-1.jpg"
-                  }
-                  alt={currentUser?.username}
-                  className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                />
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={commentText}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setCommentText(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmitComment(e);
-                      }
-                    }}
-                    placeholder="Thêm bình luận..."
-                    className="w-full px-3 pr-10 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    onClick={(e) => e.stopPropagation()}
-                    disabled={isCommenting}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!commentText.trim() || isCommenting}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  >
-                    {isCommenting ? (
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+          content={newRepostContent}
+          onContentChange={setNewRepostContent}
+          onConfirm={handleConfirmRepost}
+          isLoading={isRepostingPost}
+        />
       )}
 
+      {/* Comments Modal */}
+      <CommentsModal
+        isOpen={modals.comments}
+        onClose={() => {
+          closeModal('comments');
+          setCommentText("");
+        }}
+        comments={comments}
+        isLoading={loadingComments}
+        commentText={commentText}
+        onCommentTextChange={(value) => setCommentText(value)}
+        onSubmitComment={handleSubmitComment}
+        onDeleteComment={handleDeleteComment}
+        isCommenting={isCommenting}
+        isDeletingComment={isDeletingComment}
+      />
+
       {/* Original Post Likes Modal */}
-      {showOriginalLikesModal && isRepost && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg min-h-[400px] max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center pt-2 px-2">
-              <div className="w-6"></div>
-              <h3 className="text-base font-semibold">Người đã thích</h3>
-              <button
-                onClick={() => setShowOriginalLikesModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-full"
-              >
-                <X size={24} className="text-gray-600" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {loadingOriginalReactions ? (
-                <div className="text-center py-10 text-gray-500">Đang tải...</div>
-              ) : originalReactions.length > 0 ? (
-                <div>
-                  {originalReactions.map((reaction) => (
-                    <ModalUserItem
-                      key={`${reaction.userId}-${reaction.id}`}
-                      user={reaction.user}
-                      currentUserId={currentUser?.id}
-                      onClose={() => setShowOriginalLikesModal(false)}
-                      isFollower={false}
-                      isSelfProfile={false}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-10 text-gray-500">
-                  Chưa có ai thích bài viết này
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {isRepost && (
+        <LikesModal
+          isOpen={modals.originalLikes}
+          onClose={() => closeModal('originalLikes')}
+          reactions={originalReactions}
+          isLoading={loadingOriginalReactions}
+          currentUserId={currentUser?.id}
+        />
       )}
 
       {/* Original Post Comments Modal */}
-      {showOriginalCommentsModal && isRepost && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowOriginalCommentsModal(false);
-              setOriginalCommentText("");
-            }
+      {isRepost && (
+        <CommentsModal
+          isOpen={modals.originalComments}
+          onClose={() => {
+            closeModal('originalComments');
+            setOriginalCommentText("");
           }}
-        >
-          <div
-            className="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold">Bình luận</h3>
-              <button
-                onClick={() => {
-                  setShowOriginalCommentsModal(false);
-                  setOriginalCommentText("");
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {loadingOriginalComments ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Đang tải bình luận...
-                </div>
-              ) : originalComments.length > 0 ? (
-                <div className="space-y-4">
-                  {originalComments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3 group">
-                      <img
-                        src={
-                          comment.user?.avatarUrl ||
-                          "/images/avatar-IG-mac-dinh-1.jpg"
-                        }
-                        alt={comment.user?.username}
-                        className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                      />
-                      <div className="flex-1">
-                        <div className="bg-gray-100 rounded-lg p-3 relative">
-                          <p className="text-sm">
-                            <span className="font-semibold text-gray-900">
-                              {comment.user?.username}
-                            </span>{" "}
-                            <span className="text-gray-700">
-                              {comment.content}
-                            </span>
-                          </p>
-                          {comment.userId === currentUser?.id && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteOriginalComment(comment.id);
-                              }}
-                              disabled={isDeletingComment}
-                              className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded-full transition-opacity disabled:opacity-50"
-                              title="Xóa bình luận"
-                            >
-                              <Trash2 size={14} className="text-red-500" />
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(comment.createdAt).toLocaleDateString("vi-VN", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          })}
-                          {comment._count?.replies > 0 && (
-                            <> • {comment._count.replies} phản hồi</>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Chưa có bình luận nào
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-200">
-              <form
-                onSubmit={handleSubmitOriginalComment}
-                className="flex gap-2 items-center"
-              >
-                <img
-                  src={
-                    currentUser?.avatarUrl ||
-                    "/images/avatar-IG-mac-dinh-1.jpg"
-                  }
-                  alt={currentUser?.username}
-                  className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                />
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={originalCommentText}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setOriginalCommentText(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmitOriginalComment(e);
-                      }
-                    }}
-                    placeholder="Thêm bình luận..."
-                    className="w-full px-3 pr-10 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    onClick={(e) => e.stopPropagation()}
-                    disabled={isCommenting}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!originalCommentText.trim() || isCommenting}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                  >
-                    {isCommenting ? (
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+          comments={originalComments}
+          isLoading={loadingOriginalComments}
+          commentText={originalCommentText}
+          onCommentTextChange={(value) => setOriginalCommentText(value)}
+          onSubmitComment={(e) => handleSubmitComment(e, true)}
+          onDeleteComment={(commentId) => handleDeleteComment(commentId, true)}
+          isCommenting={isCommenting}
+          isDeletingComment={isDeletingComment}
+        />
       )}
 
       {/* Original Post Repost Modal */}
       {isRepost && (
         <RepostModal
-          isOpen={showOriginalRepostModal}
+          isOpen={modals.originalRepost}
           onClose={() => {
-            setShowOriginalRepostModal(false);
-            setOriginalRepostContent("");
+            closeModal('originalRepost');
+            setNewRepostContent("");
           }}
-          content={originalRepostContent}
-          onContentChange={setOriginalRepostContent}
-          onConfirm={handleConfirmOriginalRepost}
+          content={newRepostContent}
+          onContentChange={setNewRepostContent}
+          onConfirm={handleConfirmRepost}
           isLoading={isRepostingPost}
+        />
+      )}
+
+      {/* Post Settings Menu - chỉ hiển thị cho post thường của chính user */}
+      {!isRepostMode && (
+        <PostSettingsMenu
+          isOpen={modals.settings}
+          onClose={() => closeModal('settings')}
+          whoCanSee={whoCanSee}
+          whoCanComment={whoCanComment}
+          onUpdatePrivacy={handleUpdatePrivacy}
+          isUpdating={isUpdatingPrivacy}
         />
       )}
     </article>
