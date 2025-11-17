@@ -131,7 +131,7 @@ const Sidebar = () => {
         </Link>
 
         {/* Menu items */}
-        <nav className="flex-1">
+        <nav className="flex-1 mb-2">
           <ul className="space-y-2">
             {menuItems.map((item, index) => (
               <li key={index}>

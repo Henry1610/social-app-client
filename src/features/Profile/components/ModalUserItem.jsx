@@ -1,23 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import { 
-  useFollowUserMutation, 
-  useUnfollowUserMutation, 
   useGetFollowStatusQuery,
-  useAcceptFollowRequestMutation,
-  useRejectFollowRequestMutation,
   useRemoveFollowerMutation
 } from "../api/profileApi";
 import { toast } from "react-hot-toast";
-import FollowButton from "./FollowButton";
+import FollowButton from "../../../components/common/FollowButton";
 import confirmToast from "../../../components/common/confirmToast";
 import { ModalSkeleton } from "../../../components/common/skeletons";
 
 const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSelfProfile = false }) => {
   const navigate = useNavigate();
-  const [followUser, { isLoading: following }] = useFollowUserMutation();
-  const [unfollowUser, { isLoading: unfollowing }] = useUnfollowUserMutation();
-  const [acceptFollowRequest, { isLoading: accepting }] = useAcceptFollowRequestMutation();
-  const [rejectFollowRequest, { isLoading: rejecting }] = useRejectFollowRequestMutation();
   const [removeFollower, { isLoading: removing }] = useRemoveFollowerMutation();
   
   // Sử dụng RTK Query cache thay vì local state
@@ -33,22 +25,6 @@ const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSel
   if (initialLoading || loadingFollowStatus) {
     return <ModalSkeleton count={1} showButtons={true} />;
   }
-
-  const handleFollowToggle = async () => {
-    if (following || unfollowing) return; 
-    
-    try {
-      if (followStatus?.isFollowing) {
-        await unfollowUser(user.username).unwrap();
-        toast.success("Đã hủy theo dõi!");
-      } else {
-        await followUser(user.username).unwrap();
-        toast.success("Đã theo dõi!");
-      }
-    } catch (error) {
-      toast.error("Có lỗi xảy ra!");
-    }
-  };
 
   const handleRemoveFollower = async () => {
     if (removing) return;
@@ -96,16 +72,7 @@ const ModalUserItem = ({ user, currentUserId, onClose, isFollower = false, isSel
           <FollowButton
             followStatus={followStatus}
             viewingUsername={user.username}
-            following={following}
-            unfollowing={unfollowing}
-            unrequesting={false}
-            loadingStatus={loadingFollowStatus}
-            onFollowToggle={handleFollowToggle}
-            acceptFollowRequest={acceptFollowRequest}
-            rejectFollowRequest={rejectFollowRequest}
-            accepting={accepting}
-            rejecting={rejecting}
-            isChatButton={false}
+            isChatButtonVisible={false}
           />
           
           {/* Nút xóa follower - chỉ hiện khi là follower và đang xem profile của chính mình */}

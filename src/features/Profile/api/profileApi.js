@@ -432,6 +432,10 @@ export const profileApi = baseApi.injectEndpoints({
         { type: 'User', id: `posts-${username}` },
       ],
     }),
+    getFollowSuggestions: builder.query({
+      query: () => '/user/follows/suggestions',
+      providesTags: ['User'],
+    }),
   })
 });
 
@@ -450,4 +454,5 @@ export const {
   useUploadAvatarMutation,
   useGetUserPostsQuery,
   useUpdatePrivacySettingsMutation,
+  useGetFollowSuggestionsQuery,
 } = profileApi;

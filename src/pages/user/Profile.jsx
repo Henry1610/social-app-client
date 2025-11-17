@@ -11,11 +11,6 @@ import {
   useGetFollowStatusQuery,
   useGetFollowersQuery,
   useGetFollowingsQuery,
-  useFollowUserMutation,
-  useUnfollowUserMutation,
-  useCancelFollowRequestMutation,
-  useAcceptFollowRequestMutation,
-  useRejectFollowRequestMutation,
   useUploadAvatarMutation,
   useGetUserPostsQuery,
   useUpdatePrivacySettingsMutation,
@@ -23,13 +18,12 @@ import {
 import { postApi, useGetSavedPostsQuery } from "../../features/post/api/postApi";
 import { useGetMyRepostsQuery } from "../../features/repost/api/repostApi";
 
-import FollowButton from "../../features/profile/components/FollowButton";
+import FollowButton from "../../components/common/FollowButton";
 import ModalUserItem from "../../features/profile/components/ModalUserItem";
 import { ProfileSkeleton } from "../../components/common/skeletons";
 import PostGridItem from "../../features/post/components/PostGridItem";
 import Post from "../../features/post/components/Post";
 import PostDetailModal from "../../features/post/components/PostDetailModal";
-import confirmToast from "../../components/common/confirmToast";
 import Footer from "../../components/layouts/Footer";
 import { ModalSkeleton } from "../../components/common/skeletons";
 export default function Profile() {
@@ -92,16 +86,8 @@ export default function Profile() {
     skip: !showModal || modalType !== "following" || !viewingUsername,
   });
 
-  const { data: followStatus, isFetching: loadingStatus } =
+  const { data: followStatus } =
     useGetFollowStatusQuery(viewingUsername, { skip: !viewingUsername });
-  const [followUser, { isLoading: following }] = useFollowUserMutation();
-  const [unfollowUser, { isLoading: unfollowing }] = useUnfollowUserMutation();
-  const [cancelFollowRequest, { isLoading: unrequesting }] =
-    useCancelFollowRequestMutation();
-  const [acceptFollowRequest, { isLoading: accepting }] =
-    useAcceptFollowRequestMutation();
-  const [rejectFollowRequest, { isLoading: rejecting }] =
-    useRejectFollowRequestMutation();
   const [uploadAvatar] = useUploadAvatarMutation();
   const [updatePrivacySettings, { isLoading: isUpdatingPrivacy }] = useUpdatePrivacySettingsMutation();
 
@@ -255,7 +241,7 @@ export default function Profile() {
     setModalType(null);
   };
 
-  const isLoadingProfileData = (!isSelf && loadingPublicProfile) || loadingStats || loadingStatus;
+  const isLoadingProfileData = (!isSelf && loadingPublicProfile) || loadingStats;
   
   if (isLoadingProfileData) {
     return <ProfileSkeleton />;
@@ -291,34 +277,10 @@ export default function Profile() {
     }
   };
 
-  const onFollowToggle = async () => {
-    if (!viewingUsername || followStatus?.isSelf) return;
-
-    try {
-      if (followStatus?.isFollowing) {
-        const confirm = await confirmToast(
-          "Bạn có chắc muốn hủy theo dõi người này?"
-        );
-        if (!confirm) return;
-        await unfollowUser(viewingUsername).unwrap();
-        toast.info("Đã hủy theo dõi");
-      } else if (followStatus?.isPending) {
-        const confirm = await confirmToast("Hủy yêu cầu theo dõi ?");
-        if (!confirm) return;
-        await cancelFollowRequest(viewingUsername).unwrap();
-        toast.info("Đã hủy yêu cầu theo dõi");
-      } else {
-        const result = await followUser(viewingUsername).unwrap();
-        toast.success(result.message || "Đã theo dõi người dùng");
-      }
-    } catch {
-      toast.error("Có lỗi xảy ra, vui lòng thử lại");
-    }
-  };
 
   return (
-    <div className="md:ml-[var(--feed-sidebar-width)] flex flex-1 justify-center pb-20 md:pb-0">
-      <div className="max-w-6xl mx-auto px-4 py-4 md:py-8 w-full">
+    <div className="w-full min-w-0 md:ml-[var(--feed-sidebar-width)] flex flex-1 justify-center pb-20 md:pb-0 overflow-x-hidden">
+      <div className="w-full max-w-6xl mx-auto px-4 py-4 md:py-8 min-w-0">
         {/* Header */}
         <div className="flex gap-6 md:gap-12 mb-6 md:mb-12">
           {/* Avatar */}
@@ -363,15 +325,6 @@ export default function Profile() {
               <FollowButton
                 followStatus={followStatus}
                 viewingUsername={viewingUsername}
-                following={following}
-                unfollowing={unfollowing}
-                unrequesting={unrequesting}
-                loadingStatus={loadingStatus}
-                onFollowToggle={onFollowToggle}
-                acceptFollowRequest={acceptFollowRequest}
-                rejectFollowRequest={rejectFollowRequest}
-                accepting={accepting}
-                rejecting={rejecting}
                 isChatButtonVisible={true}
               >
                 <button
@@ -741,33 +694,33 @@ export default function Profile() {
 
       {/* Modal Privacy Settings */}
       {showUserPrivacyModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4">
           <div
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold">Cài đặt quyền riêng tư</h2>
+            <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200">
+              <h2 className="text-lg md:text-xl font-semibold">Cài đặt quyền riêng tư</h2>
               <button
                 onClick={() => setShowUserPrivacyModal(false)}
                 className="p-1 hover:bg-gray-100 rounded-full transition"
               >
-                <X size={24} className="text-gray-600" />
+                <X size={20} className="md:w-6 md:h-6 text-gray-600" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* Tài khoản riêng tư */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">Tài khoản riêng tư</h3>
-                  <p className="text-sm text-gray-500">
+              <div className="flex items-start md:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1">Tài khoản riêng tư</h3>
+                  <p className="text-xs md:text-sm text-gray-500">
                     Chỉ những người bạn chấp nhận theo dõi mới thấy bài viết của bạn
                   </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                   <input
                     type="checkbox"
                     checked={userPrivacySettings.isPrivate}
@@ -783,10 +736,10 @@ export default function Profile() {
                 </label>
               </div>
 
-              <div className="border-t border-gray-200 pt-6 space-y-5">
+              <div className="border-t border-gray-200 pt-4 md:pt-6 space-y-4 md:space-y-5">
                 {/* Ai có thể nhắn tin cho bạn */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-900 mb-2">
                     Ai có thể nhắn tin cho bạn?
                   </label>
                   <select
@@ -797,7 +750,7 @@ export default function Profile() {
                         whoCanMessage: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                    className="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
                   >
                     <option value="everyone">Mọi người</option>
                     <option value="followers">Chỉ người theo dõi</option>
@@ -807,7 +760,7 @@ export default function Profile() {
 
                 {/* Ai có thể gắn thẻ bạn */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-900 mb-2">
                     Ai có thể gắn thẻ bạn?
                   </label>
                   <select
@@ -818,7 +771,7 @@ export default function Profile() {
                         whoCanTagMe: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                    className="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
                   >
                     <option value="everyone">Mọi người</option>
                     <option value="followers">Chỉ người theo dõi</option>
@@ -828,7 +781,7 @@ export default function Profile() {
 
                 {/* Ai có thể tìm bạn bằng tên người dùng */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-900 mb-2">
                     Ai có thể tìm bạn bằng tên người dùng?
                   </label>
                   <select
@@ -839,7 +792,7 @@ export default function Profile() {
                         whoCanFindByUsername: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
+                    className="w-full px-3 md:px-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer"
                   >
                     <option value="everyone">Mọi người</option>
                     <option value="followers">Chỉ người theo dõi</option>
@@ -848,14 +801,14 @@ export default function Profile() {
                 </div>
 
                 {/* Hiển thị trạng thái hoạt động */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Hiển thị trạng thái hoạt động</h3>
-                    <p className="text-sm text-gray-500">
+                <div className="flex items-start md:items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1">Hiển thị trạng thái hoạt động</h3>
+                    <p className="text-xs md:text-sm text-gray-500">
                       Cho phép mọi người thấy khi bạn đang online
                     </p>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
                     <input
                       type="checkbox"
                       checked={userPrivacySettings.showOnlineStatus}
@@ -874,10 +827,10 @@ export default function Profile() {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+            <div className="flex flex-col-reverse md:flex-row justify-end gap-2 md:gap-3 p-4 md:p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowUserPrivacyModal(false)}
-                className="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition font-medium"
+                className="w-full md:w-auto px-4 md:px-6 py-2 text-sm md:text-base text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition font-medium"
               >
                 Hủy
               </button>
@@ -900,7 +853,7 @@ export default function Profile() {
                   }
                 }}
                 disabled={isUpdatingPrivacy}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center gap-2"
+                className="w-full md:w-auto px-4 md:px-6 py-2 text-sm md:text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium flex items-center justify-center gap-2"
               >
                 {isUpdatingPrivacy ? (
                   <>

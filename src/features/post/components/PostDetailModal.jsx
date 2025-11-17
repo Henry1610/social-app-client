@@ -30,6 +30,9 @@ import {
   ChevronDown,
   MoreHorizontal,
   Settings,
+  Image,
+  MessageCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../../components/common/confirmToast";
@@ -64,6 +67,7 @@ const PostDetailModal = ({
   const [isReposted, setIsReposted] = useState(false);
   const [showRepostModal, setShowRepostModal] = useState(false);
   const [repostContent, setRepostContent] = useState("");
+  const [activeTab, setActiveTab] = useState("image"); // "image" | "comments"
   const settingsMenuRef = useRef(null);
   const privacySettingsRef = useRef(null);
 
@@ -416,19 +420,85 @@ const PostDetailModal = ({
 
   return (
     <div
-      className="fixed inset-0 bg-white/90 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-white/90 flex items-center justify-center z-50 p-0 md:p-4"
       onClick={handleClose}
     >
       <div
-        className="bg-white rounded-lg overflow-hidden max-w-5xl w-full shadow-2xl flex border border-gray-300"
-        style={{ maxHeight: "95vh", height: "95vh" }}
+        className="bg-white rounded-lg overflow-hidden max-w-5xl w-full h-full md:h-[95vh] md:max-h-[95vh] shadow-2xl flex flex-col md:flex-row border-0 md:border border-gray-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <PostMediaViewer
-          media={selectedPostFull.media}
-          content={selectedPostFull.content}
-        />
-        <div className="w-96 p-4 border-l border-gray-300 flex flex-col h-full">
+        {/* Tabs cho mobile */}
+        <div className="md:hidden flex border-b border-gray-300 flex-shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="p-3 flex items-center justify-center hover:bg-gray-100 transition"
+          >
+            <ArrowLeft size={20} className="text-gray-700" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("image");
+            }}
+            className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 font-semibold text-sm transition ${
+              activeTab === "image"
+                ? "text-gray-900 border-b-2 border-gray-900"
+                : "text-gray-500"
+            }`}
+          >
+            <Image size={18} />
+            Ảnh
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveTab("comments");
+            }}
+            className={`flex-1 py-3 px-4 flex items-center justify-center gap-2 font-semibold text-sm transition ${
+              activeTab === "comments"
+                ? "text-gray-900 border-b-2 border-gray-900"
+                : "text-gray-500"
+            }`}
+          >
+            <MessageCircle size={18} />
+            Bình luận
+          </button>
+        </div>
+
+        {/* Media Viewer - Mobile: chỉ hiển thị khi activeTab === "image", Desktop: luôn hiển thị */}
+        <div className={`${activeTab === "image" ? "flex" : "hidden"} md:flex flex-1 md:flex-shrink-0 min-h-0 overflow-hidden flex-col`}>
+          {/* Header đơn giản cho tab ảnh */}
+          <div className="flex-shrink-0 p-3 md:p-4 border-b border-gray-300 bg-white">
+            <div className="flex items-center gap-3">
+              <img
+                src={selectedPostFull.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                alt={selectedPostFull.user?.username}
+                className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">
+                  {selectedPostFull.user?.username}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {formatTimeAgo(selectedPostFull.createdAt)}
+                </p>
+              </div>
+            </div>
+          </div>
+          {/* Media Viewer */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <PostMediaViewer
+              media={selectedPostFull.media}
+              content={selectedPostFull.content}
+            />
+          </div>
+        </div>
+
+        {/* Comments Section - Mobile: chỉ hiển thị khi activeTab === "comments", Desktop: luôn hiển thị */}
+        <div className={`${activeTab === "comments" ? "flex" : "hidden"} md:flex w-full md:w-96 p-3 md:p-4 md:border-l border-gray-300 flex-col h-full overflow-hidden pb-20 md:pb-4`}>
           <div className="flex flex-col pb-2 border-b border-gray-300 flex-shrink-0">
             <div className="flex items-start justify-between mb-2">
               <PostHeader

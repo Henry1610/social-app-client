@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { UserPlus, LogOut } from "lucide-react";
+import { UserPlus, LogOut, ArrowLeft } from "lucide-react";
 
 /**
  * ChatHeader - Header của chat với avatar, tên và action buttons
@@ -25,6 +25,14 @@ const ChatHeader = ({
   return (
     <div className="p-4 border-b border-gray-200">
       <div className="flex items-center space-x-3">
+        {/* Back button - chỉ hiển thị trên mobile */}
+        <button
+          onClick={() => navigate('/chat')}
+          className="md:hidden mr-2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+          title="Quay lại"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
         {selectedConversation?.type === 'GROUP' ? (
           <button 
             type="button" 

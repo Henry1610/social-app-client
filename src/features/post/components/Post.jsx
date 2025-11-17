@@ -401,7 +401,7 @@ function Post({
 
 
   return (
-    <article ref={postViewRef} className="mb-6 border-b border-gray-200 max-w-[500px] mx-auto ">
+    <article ref={postViewRef} className="mb-6 border-b border-gray-200 w-full max-w-[500px] mx-auto px-2 md:px-0">
       {/* Post Header */}
       <div className="flex items-start justify-between mb-2">
         <PostHeader
@@ -535,7 +535,7 @@ function Post({
 
       {/* Reposts Count */}
       {!isRepostMode && repostsCount > 0 && (
-        <div className="mb-3">
+        <div className="mb-1">
           <span className="text-gray-500 text-sm">
             {repostsCount.toLocaleString()} lượt đăng lại
           </span>

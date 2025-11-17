@@ -70,7 +70,7 @@ export const NotificationCenter = () => {
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="pr-2 py-1">
       {notifications.map((n, index) => {
         const actor = n.actor || n.metadata?.lastActorName;
         const avatarUrl = actor?.avatarUrl ;
@@ -80,7 +80,7 @@ export const NotificationCenter = () => {
           <div
             key={`${n.id}-${n.createdAt}-${index}`}
             onClick={() => handleNotificationClick(n)}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all cursor-pointer"
+            className="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-lg hover:bg-gray-50 transition-all cursor-pointer"
           >
             {/* Avatar */}
             <div className="flex-shrink-0">

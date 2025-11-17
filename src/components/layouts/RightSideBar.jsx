@@ -1,3 +1,9 @@
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { selectCurrentUser } from "../../features/auth/authSlice";
+import { useGetFollowSuggestionsQuery } from "../../features/profile/api/profileApi";
+import FollowButton from "../common/FollowButton";
+
 const links = [
   { label: "Giới thiệu", href: "https://about.instagram.com/", external: true },
   { label: "Trợ giúp", href: "https://help.instagram.com/", external: true },
@@ -28,44 +34,87 @@ const links = [
 ];
 
 function RightSidebar() {
+  const navigate = useNavigate();
+  const currentUser = useSelector(selectCurrentUser);
+  const { data: suggestionsData, isLoading: loadingSuggestions } = useGetFollowSuggestionsQuery();
+  
+  const suggestions = suggestionsData?.suggestions || [];
+  const displayedSuggestions = suggestions.slice(0, 5); // Chỉ hiển thị 5 suggestions đầu tiên
+
+  const handleUserClick = (username) => {
+    navigate(`/${username}`);
+  };
+
   return (
     <aside className="w-80 pl-10 py-10 hidden lg:block">
       {/* User Profile */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-gray-300" />
-          <div>
-            <p className="font-semibold text-sm">wynot_henry</p>
-            <p className="text-gray-500 text-xs">Nguyễn Trường</p>
+      {currentUser && (
+        <div className="flex items-center justify-between mb-4">
+          <div 
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => handleUserClick(currentUser.username)}
+          >
+            <img 
+              src={currentUser.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"} 
+              alt={currentUser.username}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div>
+              <p className="font-semibold text-sm">{currentUser.username}</p>
+              <p className="text-gray-500 text-xs">{currentUser.fullName || ""}</p>
+            </div>
           </div>
+          <button 
+            className="text-blue-500 text-xs font-semibold hover:text-blue-600"
+            onClick={() => navigate(`/${currentUser.username}`)}
+          >
+            Chuyển
+          </button>
         </div>
-        <button className="text-blue-500 text-xs font-semibold">Chuyển</button>
-      </div>
+      )}
 
       {/* Suggestions Header */}
       <div className="flex items-center justify-between mb-2 px-4 py-1">
         <span className="text-gray-500 text-sm font-semibold">
           Gợi ý cho bạn
         </span>
-        <button className="text-xs font-semibold">Xem tất cả</button>
       </div>
 
       {/* Suggestions List */}
-      <div className="space-y-1 mb-8">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gray-300" />
-              <div>
-                <p className="font-semibold text-sm">user{i}</p>
-                <p className="text-gray-500 text-xs">Gợi ý cho bạn</p>
+      <div className="space-y-1 mb-6">
+        {loadingSuggestions ? (
+          <div className="px-4 py-2 text-gray-500 text-sm">Đang tải...</div>
+        ) : suggestions.length === 0 ? (
+          <div className="px-4 py-2 text-gray-500 text-sm text-center font-semibold">Không có gợi ý nào</div>
+        ) : (
+            displayedSuggestions.map((user) => (
+             <div key={user.id} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 rounded-lg transition-colors duration-150">
+              <div 
+                className="flex items-center gap-3 cursor-pointer flex-1"
+                onClick={() => handleUserClick(user.username)}
+              >
+                <img 
+                  src={user.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"} 
+                  alt={user.username}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate">{user.username}</p>
+                  <p className="text-gray-500 text-xs truncate">
+                    {user.fullName || "Gợi ý cho bạn"}
+                  </p>
+                </div>
+              </div>
+              <div onClick={(e) => e.stopPropagation()}>
+                <FollowButton
+                  viewingUsername={user.username}
+                  isChatButtonVisible={false}
+                  size="small"
+                />
               </div>
             </div>
-            <button className="text-blue-500 text-xs font-semibold">
-              Theo dõi
-            </button>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Footer */}

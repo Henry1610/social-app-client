@@ -48,10 +48,10 @@ const SidePanel = ({
       )}
 
       {active === "Thông báo" && (
-        <div className="p-5 h-full flex flex-col">
+        <div className="p-3 h-full flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Thông báo</h2>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold pt-3 pl-3">Thông báo</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}

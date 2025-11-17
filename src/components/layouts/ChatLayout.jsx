@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useChat } from '../../contexts/ChatContext';
 import ChatSidebar from '../../features/chat/ChatSidebar';
 
@@ -9,6 +9,7 @@ const ChatLayout = () => {
     setSelectedConversation
   } = useChat();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSelectConversation = (conversation) => {
     setSelectedConversation(conversation);
@@ -16,18 +17,27 @@ const ChatLayout = () => {
     navigate(`/chat/${conversation.id}`);
   };
 
+  // Kiểm tra xem có đang ở conversation detail không
+  const isConversationDetail = location.pathname !== '/chat' && location.pathname.startsWith('/chat/');
+
   return (
     <div className="flex h-screen bg-white text-gray-900 chat-layout-collapsed">
-      {/* Chat Sidebar */}
-      <div className="w-96 border-r border-gray-200 flex flex-col">
+      {/* Chat Sidebar - Desktop: luôn hiển thị, Mobile: chỉ hiển thị khi không ở conversation detail */}
+      <div className={`w-full md:w-96 border-r border-gray-200 flex flex-col ${
+        isConversationDetail ? 'hidden md:flex' : 'flex'
+      }`}>
         <ChatSidebar 
           selectedConversation={selectedConversation}
           onSelectConversation={handleSelectConversation}
         />
       </div>
 
-      {/* Chat Main Area */}
-      <div className="flex-1">
+      {/* Chat Main Area - Desktop: luôn hiển thị, Mobile: chỉ hiển thị khi ở conversation detail */}
+      <div className={`flex-1 ${
+        isConversationDetail 
+          ? 'flex flex-col' 
+          : 'hidden md:flex md:flex-col'
+      }`}>
         <Outlet /> {/* Hiển thị children routes */}
       </div>
     </div>
