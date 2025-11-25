@@ -3,6 +3,7 @@ import { MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 const PostMediaViewer = ({ media, content, className = "" }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  console.log("PostMediaViewer rendered with media:", media);
 
   useEffect(() => {
     setCurrentMediaIndex(0);
@@ -10,23 +11,38 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
 
   if (!media || media.length === 0) {
     return (
-      <div className={`flex-1 flex items-center justify-center text-gray-500 ${className}`}>
+      <div
+        className={`flex-1 flex items-center justify-center text-gray-500 ${className}`}
+      >
         <MessageCircle size={64} />
       </div>
     );
   }
 
   return (
-    <div className={`flex-1 flex items-center justify-center bg-black relative ${className}`}>
+    <div
+      className={`flex-1 flex items-center justify-center bg-black relative ${className}`}
+    >
       {media[currentMediaIndex]?.mediaUrl ? (
-        <img
-          src={media[currentMediaIndex].mediaUrl}
-          alt={content || "Post"}
-          className="h-full object-contain"
-          onError={(e) => {
-            e.target.src = "/images/placeholder.png";
-          }}
-        />
+        media[currentMediaIndex]?.type === "video" ? (
+          <video
+            src={media[currentMediaIndex].mediaUrl}
+            controls
+            className="h-full object-contain"
+            onError={(e) => {
+              e.target.src = "/videos/placeholder.mp4";
+            }}
+          />
+        ) : (
+          <img
+            src={media[currentMediaIndex].mediaUrl}
+            alt={content}
+            className="w-full object-cover h-auto"
+            onError={(e) => {
+              e.target.src = "/images/placeholder.png";
+            }}
+          />
+        )
       ) : (
         <div className="flex items-center justify-center text-gray-500">
           <MessageCircle size={64} />
@@ -83,4 +99,3 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
 };
 
 export default PostMediaViewer;
-

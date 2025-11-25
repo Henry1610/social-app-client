@@ -198,9 +198,6 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
     // Join conversation room
     socketService.joinConversation(selectedConversation.id);
 
-    // Refetch messages ngay khi join conversation để đảm bảo có tin nhắn mới nhất
-    refetch();
-
     // Listen for new messages
     const handleNewMessage = (data) => {
       if (data.conversationId === selectedConversation.id) {

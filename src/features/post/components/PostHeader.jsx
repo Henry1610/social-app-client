@@ -1,5 +1,6 @@
 import { Repeat2 } from "lucide-react";
 import { formatTimeAgo } from "../../../utils/formatTimeAgo";
+import { useState } from "react";
 
 const PostHeader = ({
   user,
@@ -8,24 +9,34 @@ const PostHeader = ({
   isRepost = false,
   repostedBy = null,
   onNavigate,
-  size = "normal", // "normal" | "small"
+  size = "normal",
 }) => {
   const displayUser = isRepost && repostedBy ? repostedBy : user;
-  const avatarSize = size === "small" ? "w-6 h-6" : "w-8 h-8";
+  const avatarSize = size === "small" ? "w-6 h-6" : "w-10 h-10";
   const textSize = size === "small" ? "text-sm" : "text-sm";
+
+  const [expanded, setExpanded] = useState(false);
+  const limit = 150;
+  const isLong = content.length > limit;
+  const displayedText = expanded ? content : content.slice(0, limit);
 
   return (
     <div className={`flex gap-2 ${size === "small" ? "mb-2" : ""}`}>
+      {/* Avatar */}
       <img
         src={
           displayUser?.avatarUrl ||
           displayUser?.avatar ||
           "/images/avatar-IG-mac-dinh-1.jpg"
         }
+        onClick={() => onNavigate(`/${displayUser?.username}`)}
         alt={displayUser?.username}
-        className={`${avatarSize} rounded-full flex-shrink-0 object-cover w-10 h-10`}
+        className={`${avatarSize} rounded-full flex-shrink-0 object-cover`}
       />
+
+      {/* Right content */}
       <div className="flex-1 min-w-0">
+        {/* === Top row: username + verified + time === */}
         <div className="flex items-center gap-1 flex-wrap">
           {isRepost && repostedBy ? (
             <>
@@ -35,6 +46,7 @@ const PostHeader = ({
               >
                 {repostedBy.username}
               </button>
+
               <Repeat2 size={14} className="text-gray-500 flex-shrink-0" />
             </>
           ) : (
@@ -45,6 +57,7 @@ const PostHeader = ({
               >
                 {user?.username}
               </button>
+
               {user?.verified && (
                 <svg
                   className="w-3 h-3 text-blue-500 fill-current flex-shrink-0"
@@ -55,12 +68,28 @@ const PostHeader = ({
               )}
             </>
           )}
-          {content && (
-            <span className={`${textSize} text-gray-900`}>{content}</span>
-          )}
+
+          {/* Time */}
+          <span className="text-gray-500 text-xs">
+            • {formatTimeAgo(createdAt)}
+          </span>
         </div>
-        <div className={`text-gray-500 text-xs mt-0.5`}>
-          {formatTimeAgo(createdAt)}
+
+        {/* === Content below === */}
+        <div className="mt-0.5 leading-tight">
+          <span className={`${textSize}`}>
+            {displayedText}
+            {!expanded && isLong && " ... "}
+          </span>
+
+          {isLong && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className={`font-semibold hover:underline ml-1 ${textSize}`}
+            >
+              {expanded ? "Thu gọn" : "Xem thêm"}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -68,4 +97,3 @@ const PostHeader = ({
 };
 
 export default PostHeader;
-

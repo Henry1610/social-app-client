@@ -45,7 +45,7 @@ const PostActions = ({
             disabled={isReposting}
             className={`transition ${
               isReposted
-                ? "text-green-500 hover:text-green-600"
+                ? "text-dark hover:text-gray-900"
                 : "hover:text-gray-900"
             } ${isReposting ? "opacity-50 cursor-not-allowed" : ""}`}
           >
@@ -63,7 +63,7 @@ const PostActions = ({
           disabled={isSaving}
           className={`transition ${
             isSaved
-              ? "text-blue-500 hover:text-blue-600"
+              ? "text-dark hover:gray-900"
               : "hover:text-gray-500"
           } ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
         >

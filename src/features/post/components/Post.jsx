@@ -401,7 +401,7 @@ function Post({
 
 
   return (
-    <article ref={postViewRef} className="mb-6 border-b border-gray-200 w-full max-w-[500px] mx-auto px-2 md:px-0">
+    <article ref={postViewRef} className="border-b border-gray-200 w-full max-w-[500px] mx-auto px-2 md:px-0">
       {/* Post Header */}
       <div className="flex items-start justify-between mb-2">
         <PostHeader
@@ -423,7 +423,7 @@ function Post({
             }}
             className="text-gray-600 hover:text-gray-800 flex-shrink-0"
           >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="5" r="1.5" />
               <circle cx="12" cy="12" r="1.5" />
               <circle cx="12" cy="19" r="1.5" />
