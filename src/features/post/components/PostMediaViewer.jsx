@@ -28,7 +28,7 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
           <video
             src={media[currentMediaIndex].mediaUrl}
             controls
-            className="h-full object-contain"
+            className="max-h-full max-w-full object-contain"
             onError={(e) => {
               e.target.src = "/videos/placeholder.mp4";
             }}
@@ -37,7 +37,7 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
           <img
             src={media[currentMediaIndex].mediaUrl}
             alt={content}
-            className="w-full object-cover h-auto"
+            className="max-h-full max-w-full object-contain"
             onError={(e) => {
               e.target.src = "/images/placeholder.png";
             }}

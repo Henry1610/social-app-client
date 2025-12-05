@@ -16,7 +16,7 @@ import {
   useUpdatePrivacySettingsMutation,
 } from "../../features/profile/api/profileApi";
 import { postApi, useGetSavedPostsQuery } from "../../features/post/api/postApi";
-import { useGetMyRepostsQuery } from "../../features/repost/api/repostApi";
+import { useGetUserRepostsQuery } from "../../features/repost/api/repostApi";
 
 import FollowButton from "../../components/common/FollowButton";
 import ModalUserItem from "../../features/profile/components/ModalUserItem";
@@ -143,7 +143,7 @@ export default function Profile() {
     }));
   }, [savedPostsData?.items]);
 
-  const { data: repostsData, isLoading: loadingReposts } = useGetMyRepostsQuery(
+  const { data: repostsData, isLoading: loadingReposts } = useGetUserRepostsQuery(
     { username: viewingUsername },
     { 
       skip: 

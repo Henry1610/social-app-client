@@ -489,7 +489,7 @@ const PostDetailModal = ({
             </div>
           </div>
           {/* Media Viewer */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden flex items-center">
             <PostMediaViewer
               media={selectedPostFull.media}
               content={selectedPostFull.content}

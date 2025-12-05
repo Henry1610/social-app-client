@@ -17,8 +17,10 @@ const PostHeader = ({
 
   const [expanded, setExpanded] = useState(false);
   const limit = 150;
-  const isLong = content.length > limit;
-  const displayedText = expanded ? content : content.slice(0, limit);
+  const contentText = content || "";
+  const isLong = contentText.length > limit;
+  const displayedText = expanded ? contentText : contentText.slice(0, limit);
+  const hasContent = contentText.trim().length > 0;
 
   return (
     <div className={`flex gap-2 ${size === "small" ? "mb-2" : ""}`}>
@@ -35,7 +37,7 @@ const PostHeader = ({
       />
 
       {/* Right content */}
-      <div className="flex-1 min-w-0">
+      <div className={`flex-1 min-w-0 ${!hasContent ? 'flex items-center' : ''}`}>
         {/* === Top row: username + verified + time === */}
         <div className="flex items-center gap-1 flex-wrap">
           {isRepost && repostedBy ? (
@@ -74,8 +76,8 @@ const PostHeader = ({
             • {formatTimeAgo(createdAt)}
           </span>
         </div>
-
         {/* === Content below === */}
+        {hasContent && (
         <div className="mt-0.5 leading-tight">
           <span className={`${textSize}`}>
             {displayedText}
@@ -91,6 +93,7 @@ const PostHeader = ({
             </button>
           )}
         </div>
+        )}
       </div>
     </div>
   );

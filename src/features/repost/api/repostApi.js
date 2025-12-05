@@ -27,8 +27,8 @@ export const repostApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Lấy danh sách reposts của một user
-    getMyReposts: builder.query({
+    // Lấy danh sách reposts của một user (có thể là mình hoặc người khác)
+    getUserReposts: builder.query({
       query: ({ username } = {}) => ({
         url: `/user/${username}/reposts`,
       }),
@@ -48,7 +48,7 @@ export const repostApi = baseApi.injectEndpoints({
 export const {
   useRepostPostMutation,
   useUndoRepostMutation,
-  useGetMyRepostsQuery,
+  useGetUserRepostsQuery,
   useMarkRepostAsViewedMutation,
 } = repostApi;
 
