@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { useLogoutMutation } from '../api/authApi';
 import { logout as logoutAction } from '../authSlice';
 import { chatApi } from '../../chat/api/chatApi';
-import { profileApi } from '../../profile/api/profileApi';
+import { profileApi } from '../../profile/api/profileApi.js';
 import { baseApi } from '../../../services/api';
 
 const useLogout = () => {

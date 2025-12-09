@@ -1,5 +1,5 @@
 import { baseApi } from '../../../services/api';
-import { profileApi } from '../../profile/api/profileApi';
+import { profileApi } from '../../profile/api/profileApi.js';
 
 export const postApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({

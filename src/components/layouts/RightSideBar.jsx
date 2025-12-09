@@ -1,7 +1,7 @@
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { selectCurrentUser } from "../../features/auth/authSlice";
-import { useGetFollowSuggestionsQuery } from "../../features/profile/api/profileApi";
+import { useGetFollowSuggestionsQuery } from "../../features/profile/api/profileApi.js";
 import FollowButton from "../common/FollowButton";
 
 const links = [

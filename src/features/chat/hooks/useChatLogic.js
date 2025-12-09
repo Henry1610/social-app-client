@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useGetPublicProfileQuery } from "../../profile/api/profileApi";
+import { useGetPublicProfileQuery } from "../../profile/api/profileApi.js";
 import useCanMessage from "../../../hooks/useCanMessage";
 import {
   useGetMessagesQuery,

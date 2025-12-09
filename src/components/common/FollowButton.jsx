@@ -9,7 +9,7 @@ import {
   useAcceptFollowRequestMutation,
   useRejectFollowRequestMutation,
   useGetFollowStatusQuery
-} from "../../features/profile/api/profileApi";
+} from "../../features/profile/api/profileApi.js";
 import confirmToast from "./confirmToast";
 
 const FollowButton = ({

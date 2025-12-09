@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useGetFollowStatusQuery } from "../features/profile/api/profileApi";
+import { useGetFollowStatusQuery } from "../features/profile/api/profileApi.js";
 
 /**
  * Hook để kiểm tra xem user có thể nhắn tin cho target user hay không
