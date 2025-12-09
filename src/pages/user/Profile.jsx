@@ -14,7 +14,7 @@ import {
   useUploadAvatarMutation,
   useGetUserPostsQuery,
   useUpdatePrivacySettingsMutation,
-} from "../../features/profile/api/profileApi";
+} from "../../features/profile/api/profileApi.js";
 import { postApi, useGetSavedPostsQuery } from "../../features/post/api/postApi";
 import { useGetUserRepostsQuery } from "../../features/repost/api/repostApi";
 
