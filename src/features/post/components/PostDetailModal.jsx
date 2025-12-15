@@ -14,6 +14,7 @@ import {
   useCreateCommentMutation,
   useDeleteCommentMutation,
 } from "../../comment/api/commentApi";
+import CommentItem from "../../comment/components/CommentItem";
 import {
   useGetMyReactionQuery,
   useCreateOrUpdateReactionMutation,
@@ -28,7 +29,6 @@ import {
   Send,
   CheckCircle,
   ChevronDown,
-  MoreHorizontal,
   Settings,
   Image,
   MessageCircle,
@@ -139,9 +139,6 @@ const PostDetailModal = ({
   const [unsavePost, { isLoading: isUnsaving }] = useUnsavePostMutation();
   const [repostPost, { isLoading: isReposting }] = useRepostPostMutation();
   const [undoRepost, { isLoading: isUndoingRepost }] = useUndoRepostMutation();
-  const [hoveredCommentId, setHoveredCommentId] = useState(null);
-  const [showDeleteMenu, setShowDeleteMenu] = useState(null);
-  const deleteMenuRefs = useRef({});
 
   const effectiveShowSettingsMenu =
     externalShowSettingsMenu !== undefined
@@ -191,24 +188,16 @@ const PostDetailModal = ({
       const isClickInsidePrivacySettings = privacySettingsRef.current?.contains(
         event.target
       );
-      const isClickInsideDeleteMenu =
-        showDeleteMenu &&
-        deleteMenuRefs.current[showDeleteMenu]?.contains(event.target);
 
       if (!isClickInsideSettingsMenu && !isClickInsidePrivacySettings) {
         effectiveSetShowSettingsMenu(false);
         effectiveSetShowPrivacySettings(false);
       }
-
-      if (showDeleteMenu && !isClickInsideDeleteMenu) {
-        setShowDeleteMenu(null);
-      }
     };
 
     if (
       effectiveShowSettingsMenu ||
-      effectiveShowPrivacySettings ||
-      showDeleteMenu
+      effectiveShowPrivacySettings
     ) {
       document.addEventListener("mousedown", handleClickOutside);
     }
@@ -219,7 +208,6 @@ const PostDetailModal = ({
   }, [
     effectiveShowSettingsMenu,
     effectiveShowPrivacySettings,
-    showDeleteMenu,
     effectiveSetShowSettingsMenu,
     effectiveSetShowPrivacySettings,
   ]);
@@ -277,7 +265,6 @@ const PostDetailModal = ({
       );
 
       if (!confirmed) {
-        setShowDeleteMenu(null);
         return;
       }
 
@@ -289,10 +276,8 @@ const PostDetailModal = ({
 
       toast.success("Đã xóa bình luận");
       refetchComments();
-      setShowDeleteMenu(null);
     } catch (error) {
       toast.error(error?.data?.message || "Xóa bình luận thất bại");
-      setShowDeleteMenu(null);
     }
   };
 
@@ -570,101 +555,20 @@ const PostDetailModal = ({
                   Đang tải bình luận...
                 </div>
               ) : comments.length > 0 ? (
-                <div className="space-y-4">
-                  {comments.map((comment) => {
-                    const isCommentOwner = comment.userId === currentUser?.id;
-                    return (
-                      <div
-                        key={comment.id}
-                        className="flex gap-2 group"
-                        onMouseEnter={() => setHoveredCommentId(comment.id)}
-                        onMouseLeave={() => {
-                          if (showDeleteMenu !== comment.id) {
-                            setHoveredCommentId(null);
-                          }
-                        }}
-                      >
-                        <img
-                          src={
-                            comment.user?.avatarUrl ||
-                            "/images/avatar-IG-mac-dinh-1.jpg"
-                          }
-                          alt={comment.user?.username}
-                          className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                        />
-                        <div className="flex-1 relative min-w-0">
-                          <div className="">
-                            <span className="text-sm font-semibold text-gray-900">
-                              {comment.user?.username}
-                            </span>{" "}
-                            <span className="text-sm text-gray-900">
-                              {comment.content}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <span>{formatTimeAgo(comment.createdAt)}</span>
-                            {comment._count?.replies > 0 && (
-                              <>
-                                <span>•</span>
-                                <span>{comment._count.replies} phản hồi</span>
-                              </>
-                            )}
-                            
-                          </div>
-                          {isCommentOwner &&
-                            hoveredCommentId === comment.id && (
-                              <div className="absolute right-0 top-0">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowDeleteMenu(
-                                      showDeleteMenu === comment.id
-                                        ? null
-                                        : comment.id
-                                    );
-                                  }}
-                                  className="p-1 hover:bg-gray-100 rounded-full transition"
-                                >
-                                  <MoreHorizontal
-                                    size={14}
-                                    className="text-gray-500"
-                                  />
-                                </button>
-                                {showDeleteMenu === comment.id && (
-                                  <div
-                                    ref={(el) => {
-                                      if (el) {
-                                        deleteMenuRefs.current[comment.id] = el;
-                                      } else {
-                                        delete deleteMenuRefs.current[
-                                          comment.id
-                                        ];
-                                      }
-                                    }}
-                                    className="absolute right-0 top-6 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[100] min-w-[120px]"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                        await handleDeleteComment(comment.id);
-                                      }}
-                                      disabled={isDeletingComment}
-                                      type="button"
-                                      className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 disabled:opacity-50"
-                                    >
-                                      <X size={14} />
-                                      Xóa
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2">
+                  {comments.map((comment) => (
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      currentUser={currentUser}
+                      onDeleteComment={handleDeleteComment}
+                      isDeletingComment={isDeletingComment}
+                      depth={1}
+                      postId={isRepost ? undefined : selectedPostFull?.id}
+                      repostId={isRepost ? repostId : undefined}
+                      onClose={handleClose}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-4 text-gray-500 text-sm">

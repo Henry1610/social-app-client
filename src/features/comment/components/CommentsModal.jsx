@@ -1,6 +1,7 @@
-import { X, Send, Trash2 } from "lucide-react";
+import { X, Send } from "lucide-react";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../auth/authSlice";
+import CommentItem from "./CommentItem";
 
 const CommentsModal = ({
   isOpen,
@@ -13,6 +14,8 @@ const CommentsModal = ({
   onDeleteComment,
   isCommenting,
   isDeletingComment,
+  postId,
+  repostId,
 }) => {
   const currentUser = useSelector(selectCurrentUser);
 
@@ -28,7 +31,7 @@ const CommentsModal = ({
       }}
     >
       <div
-        className="bg-white rounded-lg w-full max-w-md max-h-[80vh] flex flex-col"
+        className="bg-white rounded-lg w-full max-w-2xl h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -51,49 +54,17 @@ const CommentsModal = ({
           ) : comments.length > 0 ? (
             <div className="space-y-4">
               {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3 group">
-                  <img
-                    src={
-                      comment.user?.avatarUrl ||
-                      "/images/avatar-IG-mac-dinh-1.jpg"
-                    }
-                    alt={comment.user?.username}
-                    className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
-                  />
-                  <div className="flex-1">
-                    <div className="bg-gray-100 rounded-lg p-3 relative">
-                      <p className="text-sm">
-                        <span className="font-semibold text-gray-900">
-                          {comment.user?.username}
-                        </span>{" "}
-                        <span className="text-gray-700">{comment.content}</span>
-                      </p>
-                      {comment.userId === currentUser?.id && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteComment(comment.id);
-                          }}
-                          disabled={isDeletingComment}
-                          className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded-full transition-opacity disabled:opacity-50"
-                          title="Xóa bình luận"
-                        >
-                          <Trash2 size={14} className="text-red-500" />
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(comment.createdAt).toLocaleDateString("vi-VN", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
-                      {comment._count?.replies > 0 && (
-                        <> • {comment._count.replies} phản hồi</>
-                      )}
-                    </p>
-                  </div>
-                </div>
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  currentUser={currentUser}
+                  onDeleteComment={onDeleteComment}
+                  isDeletingComment={isDeletingComment}
+                  depth={1}
+                  postId={postId}
+                  repostId={repostId}
+                  onClose={onClose}
+                />
               ))}
             </div>
           ) : (

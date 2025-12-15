@@ -3,7 +3,6 @@ import { MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 const PostMediaViewer = ({ media, content, className = "" }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  console.log("PostMediaViewer rendered with media:", media);
 
   useEffect(() => {
     setCurrentMediaIndex(0);

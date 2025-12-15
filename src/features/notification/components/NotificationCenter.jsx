@@ -53,6 +53,26 @@ export const NotificationCenter = () => {
         navigate(`/${currentUsername}?postId=${n.targetId}`);
       }
     }
+    // Thông báo reply comment - mở post modal với commentId
+    else if (n.type === "REPLY" && n.targetId && n.targetType === "COMMENT") {
+      const currentUsername = currentUser?.username;      
+      if (currentUsername) {
+        // Lấy postId hoặc repostId từ metadata
+        const postId = n.metadata?.postId;
+        const repostId = n.metadata?.repostId;
+        const commentId = n.targetId;
+        
+        if (postId) {
+          // Navigate đến post với commentId trong query để highlight comment          
+          navigate(`/${currentUsername}?postId=${postId}&commentId=${commentId}`);
+        } else if (repostId) {
+          console.log(postId, commentId);
+
+          // Navigate đến repost với commentId trong query
+          navigate(`/${currentUsername}?repostId=${repostId}&commentId=${commentId}`);
+        }
+      }
+    }
   };
 
 

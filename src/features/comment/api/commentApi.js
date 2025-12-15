@@ -59,6 +59,31 @@ export const commentApi = baseApi.injectEndpoints({
         { type: 'Comment', id: postId || repostId },
       ],
     }),
+
+    replyComment: builder.mutation({
+      query: ({ commentId, content }) => ({
+        url: `/user/comments/${commentId}/reply`,
+        method: 'POST',
+        body: { content },
+      }),
+      invalidatesTags: (result, error, { commentId, postId, repostId }) => {
+        const tags = [{ type: 'Reply', id: commentId }];
+        if (postId || repostId) {
+          tags.push({ type: 'Comment', id: postId || repostId });
+        }
+        return tags;
+      },
+    }),
+
+    getRepliesByComment: builder.query({
+      query: ({ commentId, page = 1, limit = 20, sortBy = 'desc' }) => ({
+        url: `/user/comments/${commentId}/replies`,
+        params: { page, limit, sortBy },
+      }),
+      providesTags: (result, error, { commentId }) => [
+        { type: 'Reply', id: commentId },
+      ],
+    }),
   }),
 });
 
@@ -66,5 +91,7 @@ export const {
   useCreateCommentMutation,
   useGetCommentsByPostQuery,
   useDeleteCommentMutation,
+  useReplyCommentMutation,
+  useGetRepliesByCommentQuery,
 } = commentApi;
 

@@ -581,6 +581,8 @@ function Post({
         onDeleteComment={handleDeleteComment}
         isCommenting={isCommenting}
         isDeletingComment={isDeletingComment}
+        postId={isRepostComment ? null : commentTargetId}
+        repostId={isRepostComment ? commentTargetId : null}
       />
 
       {/* Original Post Likes Modal */}
@@ -610,6 +612,8 @@ function Post({
           onDeleteComment={(commentId) => handleDeleteComment(commentId, true)}
           isCommenting={isCommenting}
           isDeletingComment={isDeletingComment}
+          postId={id}
+          repostId={null}
         />
       )}
 

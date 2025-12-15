@@ -1,4 +1,5 @@
     import React from "react";
+import { formatTimeAgo } from "../../../utils/formatTimeAgo";
 import { Pin, ChevronUp } from "lucide-react";
 
 /**
@@ -69,12 +70,7 @@ const PinnedMessagesBar = ({
                         {msg.sender?.fullName || msg.sender?.username}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {new Date(msg.createdAt).toLocaleDateString("vi-VN", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatTimeAgo(msg.createdAt)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-700 line-clamp-2 transition-colors duration-200 group-hover:text-gray-900">
