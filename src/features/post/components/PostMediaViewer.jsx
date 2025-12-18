@@ -1,12 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 const PostMediaViewer = ({ media, content, className = "" }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-
-  useEffect(() => {
-    setCurrentMediaIndex(0);
-  }, [media]);
 
   if (!media || media.length === 0) {
     return (
@@ -18,25 +14,28 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
     );
   }
 
+  const currentMedia = media[currentMediaIndex];
+  const isVideo = currentMedia?.type === "video";
+
   return (
     <div
-      className={`flex-1 flex items-center justify-center bg-black relative ${className}`}
+      className={`flex items-center justify-center bg-white relative w-full rounded-lg overflow-hidden ${className}`}
     >
-      {media[currentMediaIndex]?.mediaUrl ? (
-        media[currentMediaIndex]?.type === "video" ? (
+      {currentMedia?.mediaUrl ? (
+        isVideo ? (
           <video
-            src={media[currentMediaIndex].mediaUrl}
+            src={currentMedia.mediaUrl}
             controls
-            className="max-h-full max-w-full object-contain"
+            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
             onError={(e) => {
               e.target.src = "/videos/placeholder.mp4";
             }}
           />
         ) : (
           <img
-            src={media[currentMediaIndex].mediaUrl}
+            src={currentMedia.mediaUrl}
             alt={content}
-            className="max-h-full max-w-full object-contain"
+            className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
             onError={(e) => {
               e.target.src = "/images/placeholder.png";
             }}
@@ -57,9 +56,9 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
                 e.stopPropagation();
                 setCurrentMediaIndex((prev) => prev - 1);
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gray-800 bg-opacity-75 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-opacity-90 hover:scale-110 transition-all z-40"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-900" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           {currentMediaIndex < media.length - 1 && (
@@ -68,9 +67,9 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
                 e.stopPropagation();
                 setCurrentMediaIndex((prev) => prev + 1);
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-40"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-gray-800 bg-opacity-75 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-opacity-90 hover:scale-110 transition-all z-40"
             >
-              <ChevronRight className="w-5 h-5 text-gray-900" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           )}
 
@@ -85,8 +84,8 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
                 }}
                 className={`h-2 rounded-full transition-all ${
                   currentMediaIndex === index
-                    ? "bg-white w-6"
-                    : "bg-gray-400 hover:bg-gray-300 w-2"
+                    ? "bg-primary-btn w-6"
+                    : "bg-gray-300 hover:bg-gray-400 w-2"
                 }`}
               />
             ))}

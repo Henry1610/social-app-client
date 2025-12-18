@@ -24,9 +24,10 @@ const SidePanel = ({
 
   return (
     <div
-      className={`fixed top-0 left-[80px] h-full bg-white border-r shadow-xl transition-all duration-300 z-50 ${
+      className={`fixed top-0 left-[80px] h-full border-r transition-all duration-300 z-50 ${
         active ? "w-[400px] opacity-100 translate-x-0" : "w-0 opacity-0 -translate-x-5 overflow-hidden"
       }`}
+      style={{ backgroundColor: '#FFFFFF', boxShadow: '4px 0 10px rgba(0, 0, 0, 0.1)' }}
     >
       {active === "Tìm kiếm" && (
         <div className="p-5">

@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
-import { X, Image, Play, ChevronLeft, ChevronRight, Plus, Maximize2, Loader2, ChevronDown } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { X, Image, Play, ChevronLeft, ChevronRight, Plus, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useCreatePostMutation, useUploadPostMediaMutation } from "../api/postApi";
 
 const CreatePostModal = ({ isOpen, onClose }) => {
-  const aspectRatioMenuRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [content, setContent] = useState("");
@@ -13,28 +12,9 @@ const CreatePostModal = ({ isOpen, onClose }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [whoCanSee, setWhoCanSee] = useState("everyone");
   const [whoCanComment, setWhoCanComment] = useState("everyone");
-  const [showAspectRatioMenu, setShowAspectRatioMenu] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState("original"); // original, 1:1, 4:5, 16:9
   const fileInputRef = useRef(null);
   const [createPost, { isLoading: isCreating }] = useCreatePostMutation();
   const [uploadPostMedia] = useUploadPostMediaMutation();
-
-  // Đóng menu aspect ratio khi click ra ngoài
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (aspectRatioMenuRef.current && !aspectRatioMenuRef.current.contains(event.target)) {
-        setShowAspectRatioMenu(false);
-      }
-    };
-
-    if (showAspectRatioMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showAspectRatioMenu]);
 
   const handleDragEnter = (e) => {
     e.preventDefault();
@@ -156,8 +136,6 @@ const CreatePostModal = ({ isOpen, onClose }) => {
     setCurrentIndex(0);
     setWhoCanSee("everyone");
     setWhoCanComment("everyone");
-    setAspectRatio("original");
-    setShowAspectRatioMenu(false);
     onClose();
   };
 
@@ -182,7 +160,7 @@ const CreatePostModal = ({ isOpen, onClose }) => {
             <X className="w-6 h-6" />
           </button>
           <h2 className="text-base font-semibold absolute left-1/2 transform -translate-x-1/2">
-            {showCaption ? "Tạo bài viết mới" : "Cắt"}
+            Tạo bài viết mới
           </h2>
           <button
             onClick={showCaption ? handleSubmit : handleNext}
@@ -245,36 +223,40 @@ const CreatePostModal = ({ isOpen, onClose }) => {
             // Has files - Show preview
             <>
               {/* Main preview area */}
-              <div className={`bg-black relative flex items-center justify-center ${showCaption ? 'flex-1 min-h-0' : 'w-full'} ${showCaption ? 'md:flex-1' : ''}`}>
+              <div className={`bg-white relative flex items-center justify-center ${showCaption ? 'flex-1 min-h-0' : 'w-full'} ${showCaption ? 'md:flex-1' : ''}`}>
                 {/* Current media */}
-                <div className="relative w-full h-full flex items-center justify-center">
-                  <div
-                    className="relative flex items-center justify-center overflow-hidden"
-                    style={{
-                      aspectRatio:
-                        aspectRatio === "1:1" ? "1 / 1" :
-                        aspectRatio === "4:5" ? "4 / 5" :
-                        aspectRatio === "16:9" ? "16 / 9" :
-                        "auto",
-                      maxWidth: aspectRatio !== "original" ? "100%" : "auto",
-                      maxHeight: aspectRatio !== "original" ? "100%" : "auto",
-                      width: aspectRatio !== "original" ? "100%" : "auto",
-                      height: aspectRatio !== "original" ? "auto" : "auto",
-                    }}
-                  >
+                <div className="relative w-full h-full flex items-center justify-center p-4">
+                  <div className="relative max-w-full max-h-full">
                     {selectedFiles[currentIndex]?.type === "image" ? (
                       <img
                         src={selectedFiles[currentIndex].preview}
                         alt="Preview"
-                        className={aspectRatio !== "original" ? "w-full h-full object-cover" : "max-w-full max-h-full object-contain"}
+                        className="max-w-full max-h-full w-auto h-auto object-contain"
                       />
                     ) : (
                       <video
                         src={selectedFiles[currentIndex]?.preview}
-                        className={aspectRatio !== "original" ? "w-full h-full object-cover" : "max-w-full max-h-full object-contain"}
+                        className="max-w-full max-h-full w-auto h-auto object-contain"
                         controls
                       />
                     )}
+                    
+                    {/* Khung hiển thị preview */}
+                    <div className="absolute inset-0 border-4 border-black border-opacity-40 pointer-events-none rounded-sm">
+                      {/* Góc khung - top-left */}
+                      <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-black"></div>
+                      {/* Góc khung - top-right */}
+                      <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-black"></div>
+                      {/* Góc khung - bottom-left */}
+                      <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-black"></div>
+                      {/* Góc khung - bottom-right */}
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-black"></div>
+                    </div>
+                    
+                    {/* Text hướng dẫn */}
+                    <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white text-xs px-3 py-1 rounded-full pointer-events-none">
+                      Ảnh sẽ hiển thị như này
+                    </div>
                   </div>
                 </div>
 
@@ -299,42 +281,6 @@ const CreatePostModal = ({ isOpen, onClose }) => {
                     )}
                   </>
                 )}
-
-                {/* Aspect Ratio button */}
-                <div ref={aspectRatioMenuRef} className="absolute bottom-4 left-4 z-10">
-                  <button
-                    onClick={() => setShowAspectRatioMenu(!showAspectRatioMenu)}
-                    className="w-8 h-8 bg-gray-900 bg-opacity-75 text-white rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all"
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                  </button>
-                  
-                  {/* Aspect Ratio Menu */}
-                  {showAspectRatioMenu && (
-                    <div className="absolute bottom-10 left-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[160px] z-50">
-                      <div className="text-xs text-gray-500 px-2 py-1 mb-1">Tỉ lệ khung hình</div>
-                      {[
-                        { value: "original", label: "Gốc" },
-                        { value: "1:1", label: "1:1 (Vuông)" },
-                        { value: "4:5", label: "4:5 (Dọc)" },
-                        { value: "16:9", label: "16:9 (Ngang)" },
-                      ].map((ratio) => (
-                        <button
-                          key={ratio.value}
-                          onClick={() => {
-                            setAspectRatio(ratio.value);
-                            setShowAspectRatioMenu(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 transition-colors ${
-                            aspectRatio === ratio.value ? "bg-blue-50 text-blue-600 font-medium" : "text-gray-700"
-                          }`}
-                        >
-                          {ratio.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 {/* Thumbnails strip - Hiển thị khi có file */}
                 {selectedFiles.length > 0 && (

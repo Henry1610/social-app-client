@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { formatTimeAgo } from "../../../utils/formatTimeAgo";
 import { NotificationSkeleton } from "../../../components/common/skeletons";
+import { RefreshCw } from "lucide-react";
 
 export const NotificationCenter = () => {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ export const NotificationCenter = () => {
     data: notificationsData,
     error,
     isLoading,
+    refetch,
+    isFetching,
   } = useGetNotificationsQuery({ page: 1, limit: 20 });
 
   const notifications = notificationsData?.data?.notifications || [];
@@ -76,6 +79,15 @@ export const NotificationCenter = () => {
   };
 
 
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+      toast.success("Đã làm mới danh sách thông báo");
+    } catch (error) {
+      toast.error("Không thể làm mới danh sách thông báo");
+    }
+  };
+
   //  Khi đang load thông báo
   if (isLoading) {
     return <NotificationSkeleton />;
@@ -83,14 +95,37 @@ export const NotificationCenter = () => {
 
   if (notifications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+      <div className="relative flex flex-col items-center justify-center py-10 text-gray-400">
+        <button
+          onClick={handleRefresh}
+          disabled={isFetching}
+          className="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50"
+          title="Làm mới"
+        >
+          <RefreshCw
+            size={18}
+            className={`text-gray-600 ${isFetching ? "animate-spin" : ""}`}
+          />
+        </button>
         <p className="text-sm">Chưa có thông báo nào</p>
       </div>
     );
   }
 
   return (
-    <div className="pr-2 py-1">
+    <div className="relative pr-2 py-1">
+      {/* Nút reload ở góc trên bên phải */}
+      <button
+        onClick={handleRefresh}
+        disabled={isFetching}
+        className="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 z-10 "
+        title="Làm mới"
+      >
+        <RefreshCw
+          size={18}
+          className={`text-gray-600 ${isFetching ? "animate-spin" : ""}`}
+        />
+      </button>
       {notifications.map((n, index) => {
         const actor = n.actor || n.metadata?.lastActorName;
         const avatarUrl = actor?.avatarUrl ;

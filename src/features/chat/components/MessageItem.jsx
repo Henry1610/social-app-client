@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import { MoreHorizontal, Edit, Copy, Undo, Reply, Pin } from "lucide-react";
+import { MoreHorizontal, Edit, Copy, Undo, Reply, Pin, File, Download, FileText, FileImage, FileVideo, Archive, FileSpreadsheet } from "lucide-react";
 
 const MessageItem = ({
   message,
@@ -33,6 +33,30 @@ const MessageItem = ({
   });
   const [previewImage, setPreviewImage] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
+
+  // Helper function để lấy icon dựa trên file type
+  const getFileIcon = (mediaType, filename) => {
+    if (!mediaType && !filename) return File;
+    
+    const type = mediaType?.toLowerCase() || '';
+    const ext = filename?.split('.').pop()?.toLowerCase() || '';
+    
+    if (type.includes('pdf') || ext === 'pdf') return FileText;
+    if (type.includes('word') || ext === 'doc' || ext === 'docx') return FileText;
+    if (type.includes('excel') || type.includes('spreadsheet') || ext === 'xls' || ext === 'xlsx') return FileSpreadsheet;
+    if (type.includes('zip') || type.includes('rar') || ext === 'zip' || ext === 'rar' || ext === '7z') return Archive;
+    if (type.includes('image')) return FileImage;
+    if (type.includes('video')) return FileVideo;
+    return File;
+  };
+
+  // Helper function để format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
 
   // Cập nhật vị trí modal khi mở
   useEffect(() => {
@@ -277,6 +301,31 @@ const MessageItem = ({
                                 : "max-w-xs max-h-64"
                             } rounded-lg object-contain`}
                           />
+                        ) : message.type === "FILE" ? (
+                          <a
+                            href={message.mediaUrl}
+                            download={message.filename || 'file'}
+                            className={`flex items-center gap-3 ${
+                              compact ? 'p-2' : 'p-3'
+                            } bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors group`}
+                          >
+                            <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} flex items-center justify-center bg-white rounded-lg border border-gray-200 flex-shrink-0`}>
+                              {React.createElement(getFileIcon(message.mediaType, message.filename), {
+                                className: `${compact ? 'w-5 h-5' : 'w-6 h-6'} text-gray-600`
+                              })}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-gray-900 truncate`}>
+                                {message.filename || 'File'}
+                              </p>
+                              {message.size && (
+                                <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-gray-500 mt-0.5`}>
+                                  {formatFileSize(message.size)}
+                                </p>
+                              )}
+                            </div>
+                            <Download className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0`} />
+                          </a>
                         ) : null}
                       </div>
                     )}

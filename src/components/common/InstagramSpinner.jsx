@@ -2,7 +2,7 @@ import React from "react";
 
 const InstagramSpinner = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex items-center justify-center min-h-screen ">
       <div className="relative w-16 h-16">
         {/* Vòng xoay gradient */}
         <div className="absolute inset-0 rounded-full border-4 border-t-transparent border-b-transparent border-l-pink-500 border-r-purple-500 animate-spin"></div>

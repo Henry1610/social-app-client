@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PostMediaViewer from "./PostMediaViewer";
 import PostActions from "./PostActions";
 import { useGetReactionsQuery, useCreateOrUpdateReactionMutation } from "../../reaction/api/reactionApi";
-import { postApi, useSavePostMutation, useUnsavePostMutation, useUpdatePostMutation } from "../api/postApi";
+import { postApi, useSavePostMutation, useUnsavePostMutation, useUpdatePostMutation, useDeletePostMutation } from "../api/postApi";
 import { useRepostPostMutation, useUndoRepostMutation } from "../../repost/api/repostApi";
 import { useGetCommentsByPostQuery, useCreateCommentMutation, useDeleteCommentMutation } from "../../comment/api/commentApi";
 import RepostModal from "../../repost/components/RepostModal";
@@ -115,6 +115,7 @@ function Post({
   const [undoRepost, { isLoading: isUndoingRepost }] = useUndoRepostMutation();
   const [createComment, { isLoading: isCommenting }] = useCreateCommentMutation();
   const [deleteComment, { isLoading: isDeletingComment }] = useDeleteCommentMutation();
+  const [deletePost, { isLoading: isDeletingPost }] = useDeletePostMutation();
   
   const { data: commentsData, isLoading: loadingComments, refetch: refetchComments } = useGetCommentsByPostQuery(
     { postId: isRepostComment ? null : commentTargetId, repostId: isRepostComment ? commentTargetId : null, page: 1, limit: 50, sortBy: "desc" },
@@ -368,6 +369,31 @@ function Post({
     }
   };
 
+  // Handler để xóa post
+  const handleDeletePost = async () => {
+    if (!id || isRepostMode) return; // Chỉ cho phép xóa post thường, không phải repost
+
+    const confirmed = await confirmToast("Bạn có chắc chắn muốn xóa bài viết này không?");
+
+    if (!confirmed) return;
+
+    try {
+      await deletePost(id).unwrap();
+      
+      // Cập nhật cache bằng cách xóa post khỏi feed
+      dispatch(
+        postApi.util.updateQueryData('getFeedPosts', { page: 1, limit: 20 }, (draft) => {
+          if (draft?.posts) {
+            draft.posts = draft.posts.filter(p => p.id !== id);
+          }
+        })
+      );
+      toast.success("Đã xóa bài viết");
+    } catch (error) {
+      toast.error(error?.data?.message || "Xóa bài viết thất bại");
+    }
+  };
+
   // Handler chung cho xóa comment
   const handleDeleteComment = async (commentId, isOriginal = false) => {
     try {
@@ -401,34 +427,55 @@ function Post({
 
 
   return (
-    <article ref={postViewRef} className="border-b border-gray-200 w-full max-w-[500px] mx-auto px-2 md:px-0">
+    <article ref={postViewRef} className="border-b border-gray-200 w-full max-w-[600px] mx-auto px-2 md:px-0">
       {/* Post Header */}
-      <div className="flex items-start justify-between mb-2">
-        <PostHeader
-          user={user}
-          createdAt={createdAt}
-          content={!isRepostMode ? content : repostContent}
-          isRepost={isRepostMode}
-          repostedBy={repostedBy}
-          onNavigate={navigate}
-          size="normal"
-        />
-        {/* Menu chỉnh sửa - chỉ hiển thị cho post của chính user và không phải repost */}
+      <div className="flex items-start justify-between mb-2 gap-2">
+        <div className="flex-1 min-w-0">
+          <PostHeader
+            user={user}
+            createdAt={createdAt}
+            content={!isRepostMode ? content : repostContent}
+            isRepost={isRepostMode}
+            repostedBy={repostedBy}
+            onNavigate={navigate}
+            size="normal"
+          />
+        </div>
+        {/* Nút xóa và menu - chỉ hiển thị cho post của chính user và không phải repost */}
         {/* Lưu ý: user.id là id từ user object trong post, cần kiểm tra với currentUser */}
         {currentUser?.id && user.id && currentUser.id === user.id && !isRepostMode && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              openModal('settings');
-            }}
-            className="text-gray-600 hover:text-gray-800 flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="5" r="1.5" />
-              <circle cx="12" cy="12" r="1.5" />
-              <circle cx="12" cy="19" r="1.5" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Nút xóa bài */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeletePost();
+              }}
+              disabled={isDeletingPost}
+              className="text-gray-600 hover:text-gray-800 flex-shrink-0 p-1 disabled:opacity-50 transition-colors"
+              title="Xóa bài viết"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {/* Nút menu settings */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                openModal('settings');
+              }}
+              className="text-gray-600 hover:text-gray-800 flex-shrink-0 p-1 transition-colors"
+              title="Cài đặt bài viết"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="5" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="19" r="1.5" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
 
@@ -464,11 +511,11 @@ function Post({
         <>
           {/* Post Image / Carousel */}
           {media.length > 0 && (
-            <div className="mb-3 mx-auto w-full aspect-square rounded-md overflow-hidden relative">
+            <div className="mb-3 mx-auto w-full rounded-md overflow-hidden relative">
               <PostMediaViewer
                 media={media}
                 content={content}
-                className="!flex-none w-full h-full rounded-md"
+                className="!flex-none w-full rounded-md"
               />
             </div>
           )}

@@ -1,38 +1,50 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { Search, Users, X } from "lucide-react";
 import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
+
 import { useGetConversationsQuery } from "./api/chatApi";
 import { selectCurrentUser } from "../auth/authSlice";
+import { useChat } from "../../contexts/ChatContext";
 import socketService from "../../services/socket";
 import { formatOfflineTime } from "../../utils/formatTimeAgo";
-import CreateGroupModal from "./components/CreateGroupModal";
-import { useChat } from "../../contexts/ChatContext";
-import { useLocation } from "react-router-dom";
 import ConversationAvatars from "../../components/common/ConversationAvatars";
+import CreateGroupModal from "./components/CreateGroupModal";
+
 const ChatSidebar = ({
   selectedConversation,
   onSelectConversation,
 }) => {
-  // Lấy current user từ Redux store
+  // ===== HOOKS & SELECTORS =====
   const currentUser = useSelector(selectCurrentUser);
   const location = useLocation();
   const { openChat } = useChat();
   const isOnChatPage = location.pathname.startsWith('/chat');
   
-  // Local state cho search query
+  // ===== STATE =====
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Lấy danh sách conversations từ API
-  const { data: conversationsData, isLoading, refetch } = useGetConversationsQuery();
-  const allConversations = useMemo(() => conversationsData?.data?.conversations || [], [conversationsData?.data?.conversations]);
-  
+  const [typingUsers, setTypingUsers] = useState({});
+  const [onlineUsers, setOnlineUsers] = useState({});
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+
+  // ===== API QUERIES =====
+  const { data: conversationsData, isLoading, refetch } = useGetConversationsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+  });
+
+  // ===== MEMOIZED VALUES =====
+  const allConversations = useMemo(
+    () => conversationsData?.data?.conversations || [],
+    [conversationsData?.data?.conversations]
+  );
+
   const conversations = useMemo(() => {
     if (!searchQuery?.trim()) {
       return allConversations;
     }
     
     const query = searchQuery.toLowerCase().trim();
-    
     return allConversations.filter(conv => {
       const conversationName = conv.type === 'GROUP' 
         ? (conv.name || '')
@@ -43,23 +55,62 @@ const ChatSidebar = ({
     });
   }, [allConversations, searchQuery, currentUser?.id]);
 
-  // State để track typing users theo conversation
-  const [typingUsers, setTypingUsers] = useState({});
-  
-  // State để track online users
-  const [onlineUsers, setOnlineUsers] = useState({});
-  
-  // State cho modal tạo nhóm
-  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  // ===== HELPER FUNCTIONS =====
+  const isUserActuallyOnline = useCallback((user) => {
+    if (!user?.isOnline || !user?.lastSeen) return false;
+    
+    const lastSeenDate = new Date(user.lastSeen);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
+    
+    return diffMinutes <= 5;
+  }, []);
 
+  const getConversationName = useCallback((conv, otherMember) => {
+    if (conv.type === 'GROUP') {
+      return conv.name || '';
+    }
+    return otherMember?.user?.fullName || otherMember?.user?.username || 'Người dùng';
+  }, []);
+
+  const getLastMessagePreview = useCallback((lastMessage, conv, currentUserId) => {
+    if (!lastMessage) return 'Bắt đầu cuộc trò chuyện';
+
+    const isOwn = lastMessage.senderId === currentUserId;
+    const isGroup = conv.type === 'GROUP';
+    
+    // Xử lý prefix
+    let prefix = '';
+    if (!lastMessage.isSystem) {
+      if (isOwn) {
+        prefix = 'Bạn: ';
+      } else if (isGroup && lastMessage.sender) {
+        const senderName = lastMessage.sender.fullName || lastMessage.sender.username || 'Hệ thống';
+        prefix = `${senderName}: `;
+      }
+    }
+    
+    // Xử lý body
+    let body = '';
+    if (lastMessage.isRecalled) {
+      body = 'Tin nhắn đã thu hồi';
+    } else if (lastMessage.type === 'IMAGE') {
+      body = 'đã gửi một ảnh';
+    } else if (lastMessage.type === 'VIDEO') {
+      body = 'đã gửi một video';
+    } else if (lastMessage.type === 'FILE') {
+      body = lastMessage.filename ? `đã gửi ${lastMessage.filename}` : 'đã gửi một file';
+    } else {
+      body = lastMessage.content || '';
+    }
+    
+    return { prefix, body };
+  }, []);
+
+  // ===== SOCKET EVENT HANDLERS =====
   useEffect(() => {
-    const handleUnreadCountUpdate = (data) => {
-      refetch();
-    };
-
-    const handleConversationUpdate = (data) => {
-      refetch();
-    };
+    const handleUnreadCountUpdate = () => refetch();
+    const handleConversationUpdate = () => refetch();
 
     socketService.on('chat:unread_count_update', handleUnreadCountUpdate);
     socketService.on('chat:conversation_updated', handleConversationUpdate);
@@ -81,44 +132,11 @@ const ChatSidebar = ({
     };
 
     socketService.on('chat:user_typing', handleTyping);
-
-    return () => {
-      socketService.off('chat:user_typing', handleTyping);
-    };
+    return () => socketService.off('chat:user_typing', handleTyping);
   }, [currentUser?.id]);
 
-  // Helper function để kiểm tra user có thực sự online không (dựa vào isOnline và lastSeen)
-  const isUserActuallyOnline = React.useCallback((user) => {
-    if (!user?.isOnline) return false;
-    if (!user?.lastSeen) return false;
-    
-    const lastSeenDate = new Date(user.lastSeen);
-    const now = new Date();
-    const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
-    
-    // Nếu lastSeen quá 5 phút thì coi như offline
-    return diffMinutes <= 5;
-  }, []);
-
-  // Initialize online users from API data
-  useEffect(() => {
-    if (conversations.length > 0) {
-      const initialOnlineUsers = {};
-      conversations.forEach(conv => {
-        conv.members?.forEach(member => {
-          if (member.user.id !== currentUser?.id) {
-            initialOnlineUsers[member.user.id] = isUserActuallyOnline(member.user);
-          }
-        });
-      });
-      setOnlineUsers(initialOnlineUsers);
-    }
-  }, [conversations, currentUser?.id, isUserActuallyOnline]);
-
-  // Listen for user status updates (online/offline)
   useEffect(() => {
     const handleUserStatus = (data) => {
-      // Kiểm tra lại dựa vào lastSeen nếu có
       const isOnline = data.isOnline && data.lastSeen ? (() => {
         const lastSeenDate = new Date(data.lastSeen);
         const now = new Date();
@@ -133,16 +151,27 @@ const ChatSidebar = ({
     };
 
     socketService.on('chat:user_status', handleUserStatus);
-
-    return () => {
-      socketService.off('chat:user_status', handleUserStatus);
-    };
+    return () => socketService.off('chat:user_status', handleUserStatus);
   }, []);
 
-  // Cập nhật online status định kỳ dựa vào lastSeen (mỗi phút)
+  // ===== INITIALIZE ONLINE USERS =====
+  useEffect(() => {
+    if (conversations.length > 0) {
+      const initialOnlineUsers = {};
+      conversations.forEach(conv => {
+        conv.members?.forEach(member => {
+          if (member.user.id !== currentUser?.id) {
+            initialOnlineUsers[member.user.id] = isUserActuallyOnline(member.user);
+          }
+        });
+      });
+      setOnlineUsers(initialOnlineUsers);
+    }
+  }, [conversations, currentUser?.id, isUserActuallyOnline]);
+
+  // ===== PERIODIC ONLINE STATUS UPDATE =====
   useEffect(() => {
     const interval = setInterval(() => {
-      // Kiểm tra lại online status của tất cả users dựa vào lastSeen
       setOnlineUsers(prev => {
         const updated = { ...prev };
         conversations.forEach(conv => {
@@ -154,13 +183,31 @@ const ChatSidebar = ({
         });
         return updated;
       });
-    }, 60000); // Mỗi phút
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [conversations, currentUser?.id, isUserActuallyOnline]);
 
+  // ===== HANDLERS =====
+  const handleConversationClick = (conv) => {
+    if (isOnChatPage) {
+      onSelectConversation(conv);
+    } else {
+      openChat({ 
+        conversationId: conv.id, 
+        conversation: conv 
+      });
+    }
+  };
+
+  const handleGroupCreated = (conversation) => {
+    onSelectConversation(conversation);
+    refetch();
+  };
+
+  // ===== RENDER =====
   return (
-    <div className="flex flex-col h-full bg-white text-gray-900 ">
+    <div className="flex flex-col h-full bg-white text-gray-900">
       {/* Header */}
       <div className="pt-10 px-4 flex items-center justify-end">
         <button
@@ -196,8 +243,7 @@ const ChatSidebar = ({
         <div className="font-bold text-xl pt-4 px-2">Tin nhắn</div>
       </div>
 
-
-      {/* Conversation List / Placeholder */}
+      {/* Conversation List */}
       <div className="flex-1 px-6 overflow-y-auto">
         {isLoading ? (
           <div className="space-y-3">
@@ -219,59 +265,35 @@ const ChatSidebar = ({
           </div>
         ) : (
           <div className="space-y-1">
-            {conversations.map((  conv) => {
-              // Lấy thông tin người chat (không phải user hiện tại)
-              const otherMember = conv.members?.find(member => 
-                member.user.id !== currentUser?.id
-              );
+            {conversations.map((conv) => {
+              const otherMember = conv.members?.find(member => member.user.id !== currentUser?.id);
               const lastMessage = conv.messages?.[0];
-              
-              // Sử dụng unread count từ backend
               const unreadCount = conv._count?.messages || 0;
-              
-              // Xử lý hiển thị tên conversation
-              const getConversationName = () => {
-                if (conv.type === 'GROUP') {
-                  // GROUP luôn có tên nhóm
-                  return conv.name || '';
-                } else {
-                  // DIRECT conversation
-                  return otherMember?.user?.fullName || otherMember?.user?.username || 'Người dùng';
-                }
-              };
-              
-              const conversationName = getConversationName();
-              
+              const conversationName = getConversationName(conv, otherMember);
+              const { prefix, body } = getLastMessagePreview(lastMessage, conv, currentUser?.id);
+              const isSelected = selectedConversation?.id === conv.id;
+              const hasUnread = unreadCount > 0 && !isSelected;
+              const isDirectChat = conv.type === 'DIRECT';
+              const showOnlineStatus = isDirectChat && otherMember?.user?.privacySettings?.showOnlineStatus !== false;
+              const isUserOnline = onlineUsers[otherMember?.user?.id];
+
               return (
                 <div
                   key={conv.id}
                   className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedConversation?.id === conv.id
+                    isSelected
                       ? "bg-gray-100"
-                      : unreadCount > 0
+                      : hasUnread
                       ? "bg-blue-50 hover:bg-blue-100"
                       : "hover:bg-gray-100"
                   }`}
-                  onClick={() => {
-                    if (isOnChatPage) {
-                      // Ở trang chat → Gọi onSelectConversation (sẽ navigate)
-                      onSelectConversation(conv);
-                    } else {
-                      // Ở trang khác → Mở modal
-                      openChat({ 
-                        conversationId: conv.id, 
-                        conversation: conv 
-                      });
-                    }
-                  }}
+                  onClick={() => handleConversationClick(conv)}
                 >
                   {/* Avatar */}
                   <div className="relative">
-                      {conv.type === 'GROUP' ? (
-                        // Group avatar - hiển thị avatar của 3 thành viên thành hình tam giác
-                        <ConversationAvatars members={conv.members} />
+                    {conv.type === 'GROUP' ? (
+                      <ConversationAvatars members={conv.members} />
                     ) : (
-                      // Direct chat avatar
                       <img
                         src={otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
                         alt={otherMember?.user?.username}
@@ -279,17 +301,15 @@ const ChatSidebar = ({
                       />
                     )}
                     
-                    {/* Online status indicator - chỉ hiển thị cho direct chat và khi showOnlineStatus = true */}
-                    {conv.type === 'DIRECT' && 
-                     onlineUsers[otherMember?.user?.id] && 
-                     otherMember?.user?.privacySettings?.showOnlineStatus !== false && (
+                    {/* Online status indicator */}
+                    {isDirectChat && isUserOnline && showOnlineStatus && (
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                     )}
                     
                     {/* Unread count */}
-                    {unreadCount > 0 && selectedConversation?.id !== conv.id && (
+                    {hasUnread && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {unreadCount > 9 ? '9' : unreadCount}
+                        {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
                     )}
                   </div>
@@ -297,9 +317,10 @@ const ChatSidebar = ({
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className={`font-medium truncate ${
-                        unreadCount > 0 && selectedConversation?.id !== conv.id ? "text-gray-900 font-bold" : "text-gray-900"
-                      }`} title={conversationName}>
+                      <p 
+                        className={`font-medium truncate ${hasUnread ? "text-gray-900 font-bold" : "text-gray-900"}`}
+                        title={conversationName}
+                      >
                         {conversationName}
                       </p>
                       {lastMessage && (
@@ -311,40 +332,21 @@ const ChatSidebar = ({
                         </p>
                       )}
                     </div>
+                    
                     <p className="text-sm text-gray-500 truncate">
                       {typingUsers[conv.id]?.length > 0 ? (
-                        <span className=" text-gray-500">đang nhập...</span>
-                      ) : lastMessage ? (
-                        (() => {
-                          const isOwn = lastMessage.senderId === currentUser?.id
-                          const isGroup = conv.type === 'GROUP'
-                          const prefix = lastMessage.isSystem
-                            ? ''
-                            : isOwn
-                              ? 'Bạn: '
-                              : isGroup
-                                ? `${lastMessage.sender?.fullName || lastMessage.sender?.username || 'Hệ thống'}: `
-                                : ''
-                          let body = ''
-                          if (lastMessage.isRecalled) body = 'Tin nhắn đã thu hồi'
-                          else if (lastMessage.type === 'IMAGE') body = 'đã gửi một ảnh'
-                          else if (lastMessage.type === 'VIDEO') body = 'đã gửi một video'
-                          else body = lastMessage.content || ''
-                          return (
-                            <span className={unreadCount > 0 && selectedConversation?.id !== conv.id ? 'font-semibold text-gray-900' : ''}>
-                              {prefix}{body}
-                            </span>
-                          )
-                        })()
+                        <span className="text-gray-500">đang nhập...</span>
                       ) : (
-                        'Bắt đầu cuộc trò chuyện'
+                        <span className={hasUnread ? 'font-semibold text-gray-900' : ''}>
+                          {prefix}{body}
+                        </span>
                       )}
                     </p>
                     
-                    {/* Online/Offline status - chỉ hiển thị cho DIRECT chat và khi showOnlineStatus = true */}
-                    {conv.type === 'DIRECT' && otherMember?.user?.privacySettings?.showOnlineStatus !== false && (
+                    {/* Online/Offline status */}
+                    {showOnlineStatus && (
                       <p className="text-xs text-gray-400 truncate">
-                        {onlineUsers[otherMember?.user?.id] ? (
+                        {isUserOnline ? (
                           <span className="text-green-500">Đang hoạt động</span>
                         ) : (
                           <span>{formatOfflineTime(otherMember?.user?.lastSeen)}</span>
@@ -363,12 +365,7 @@ const ChatSidebar = ({
       <CreateGroupModal
         isOpen={showCreateGroupModal}
         onClose={() => setShowCreateGroupModal(false)}
-        onGroupCreated={(conversation) => {
-          // Chọn conversation mới được tạo
-          onSelectConversation(conversation);
-          // Refresh danh sách conversations
-          refetch();
-        }}
+        onGroupCreated={handleGroupCreated}
       />
     </div>
   );

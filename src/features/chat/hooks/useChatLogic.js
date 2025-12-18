@@ -43,6 +43,7 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
   const typingTimeoutRef = useRef(null);
   const messageRefs = useRef({});
   const [didInitialScroll, setDidInitialScroll] = useState(false);
+  const conversationIdRef = useRef(null); // Track conversationId đã refetch chưa
 
   // Phân biệt giữa username và conversationId
   const conversationId = propConversationId;
@@ -197,6 +198,15 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
 
     // Join conversation room
     socketService.joinConversation(selectedConversation.id);
+    
+    // Refetch messages chỉ khi join conversation mới (khi conversationId thay đổi)
+    if (conversationIdRef.current !== selectedConversation.id) {
+      conversationIdRef.current = selectedConversation.id;
+      // Refetch messages khi join conversation mới để đảm bảo có tất cả tin nhắn mới
+      setTimeout(() => {
+        refetch();
+      }, 100);
+    }
 
     // Listen for new messages
     const handleNewMessage = (data) => {
@@ -375,6 +385,8 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
             type: u.type,
             mediaUrl: u.url,
             mediaType: u.mediaType,
+            filename: u.filename || null,
+            size: u.size || null,
             replyToId: null,
           });
         })

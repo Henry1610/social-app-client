@@ -23,23 +23,40 @@ const MessageInput = ({
     files.forEach(file => {
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
+      const isFile = !isImage && !isVideo;
       
-      if (!isImage && !isVideo) {
-        toast.error('Chỉ chấp nhận hình ảnh hoặc video');
+      // Kiểm tra kích thước file (100MB)
+      const maxSize = 100 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error(`File "${file.name}" vượt quá 100MB`);
         return;
       }
       
-      const reader = new FileReader();
-      reader.onload = () => {
+      if (isFile) {
+        // File thường (PDF, Word, Excel, ZIP, v.v.) - không cần preview
         onMediaSelect(prev => [...prev, {
           id: Date.now() + Math.random(),
           file,
-          preview: reader.result,
-          type: isImage ? 'IMAGE' : 'VIDEO',
-          mediaType: file.type
+          preview: null,
+          type: 'FILE',
+          mediaType: file.type,
+          filename: file.name,
+          size: file.size
         }]);
-      };
-      reader.readAsDataURL(file);
+      } else {
+        // Image hoặc Video - cần preview
+        const reader = new FileReader();
+        reader.onload = () => {
+          onMediaSelect(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            file,
+            preview: reader.result,
+            type: isImage ? 'IMAGE' : 'VIDEO',
+            mediaType: file.type
+          }]);
+        };
+        reader.readAsDataURL(file);
+      }
     });
     
     e.target.value = '';
@@ -87,11 +104,18 @@ const MessageInput = ({
                     alt="Preview" 
                     className={`${compact ? 'w-16 h-16' : 'w-20 h-20'} rounded-lg object-cover border border-gray-200`}
                   />
-                ) : (
+                ) : media.type === 'VIDEO' ? (
                   <video 
                     src={media.preview} 
                     className={`${compact ? 'w-16 h-16' : 'w-20 h-20'} rounded-lg object-cover border border-gray-200`}
                   />
+                ) : (
+                  <div className={`${compact ? 'w-16 h-16' : 'w-20 h-20'} rounded-lg border border-gray-200 bg-gray-50 flex flex-col items-center justify-center p-2`}>
+                    <Paperclip className={`${compact ? 'w-4 h-4' : 'w-5 h-5'} text-gray-600 mb-1`} />
+                    <span className={`${compact ? 'text-[8px]' : 'text-xs'} text-gray-600 truncate w-full text-center`} title={media.filename}>
+                      {media.filename}
+                    </span>
+                  </div>
                 )}
               </div>
             ))}
@@ -105,7 +129,6 @@ const MessageInput = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
             multiple
             onChange={handleFileSelect}
             className="hidden"

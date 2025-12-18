@@ -74,7 +74,7 @@ function Home() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {!isLoading && !error && posts.map((post) => (
               <Post
                 key={post.id}
