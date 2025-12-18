@@ -336,7 +336,7 @@ const MessageItem = ({
                           message.updatedAt !== message.createdAt && (
                             <span
                               onClick={() => onShowEditHistory(message.id)}
-                              className={`text-[11px] italic cursor-pointer hover:underline ${
+                              className={`text-[11px] italic cursor-pointer hover:underline ml-1 ${
                                 isOwnMessage ? "text-white/70" : "text-gray-400"
                               }`}
                               title="Đã chỉnh sửa"

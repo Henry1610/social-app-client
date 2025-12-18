@@ -1,4 +1,3 @@
-
 export default function FacebookLoginButton() {
   const handleFacebookLogin = () => {
     const serverUrl =

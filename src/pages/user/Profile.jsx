@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Grid, BookmarkCheck, Lock, Settings, Camera, X, Repeat2, Users, UserPlus } from "lucide-react";
+import {
+  Grid,
+  BookmarkCheck,
+  Lock,
+  Settings,
+  Camera,
+  X,
+  Repeat2,
+  Users,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { selectCurrentUser, updateUser } from "../../features/auth/authSlice";
@@ -15,7 +25,10 @@ import {
   useGetUserPostsQuery,
   useUpdatePrivacySettingsMutation,
 } from "../../features/profile/api/profileApi.js";
-import { postApi, useGetSavedPostsQuery } from "../../features/post/api/postApi";
+import {
+  postApi,
+  useGetSavedPostsQuery,
+} from "../../features/post/api/postApi";
 import { useGetUserRepostsQuery } from "../../features/repost/api/repostApi";
 
 import FollowButton from "../../components/common/FollowButton";
@@ -86,21 +99,23 @@ export default function Profile() {
     skip: !showModal || modalType !== "following" || !viewingUsername,
   });
 
-  const { data: followStatus } =
-    useGetFollowStatusQuery(viewingUsername, { skip: !viewingUsername });
+  const { data: followStatus } = useGetFollowStatusQuery(viewingUsername, {
+    skip: !viewingUsername,
+  });
   const [uploadAvatar] = useUploadAvatarMutation();
-  const [updatePrivacySettings, { isLoading: isUpdatingPrivacy }] = useUpdatePrivacySettingsMutation();
+  const [updatePrivacySettings, { isLoading: isUpdatingPrivacy }] =
+    useUpdatePrivacySettingsMutation();
 
   const isPrivate = profileUser?.privacySettings?.isPrivate;
 
   const normalizePrivacyEnum = (value) => {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       const normalized = value.trim().toLowerCase();
-      if (['everyone', 'followers', 'nobody'].includes(normalized)) {
+      if (["everyone", "followers", "nobody"].includes(normalized)) {
         return normalized;
       }
     }
-    return 'everyone'; 
+    return "everyone";
   };
 
   // Load user privacy settings khi component mount
@@ -108,64 +123,79 @@ export default function Profile() {
     if (currentUser?.privacySettings) {
       setUserPrivacySettings({
         isPrivate: Boolean(currentUser.privacySettings.isPrivate ?? false),
-        whoCanMessage: normalizePrivacyEnum(currentUser.privacySettings.whoCanMessage),
-        whoCanTagMe: normalizePrivacyEnum(currentUser.privacySettings.whoCanTagMe),
-        whoCanFindByUsername: normalizePrivacyEnum(currentUser.privacySettings.whoCanFindByUsername),
-        showOnlineStatus: Boolean(currentUser.privacySettings.showOnlineStatus ?? true),
+        whoCanMessage: normalizePrivacyEnum(
+          currentUser.privacySettings.whoCanMessage
+        ),
+        whoCanTagMe: normalizePrivacyEnum(
+          currentUser.privacySettings.whoCanTagMe
+        ),
+        whoCanFindByUsername: normalizePrivacyEnum(
+          currentUser.privacySettings.whoCanFindByUsername
+        ),
+        showOnlineStatus: Boolean(
+          currentUser.privacySettings.showOnlineStatus ?? true
+        ),
       });
     }
   }, [currentUser]);
 
   const { data: postsData, isLoading: loadingPosts } = useGetUserPostsQuery(
     { username: viewingUsername },
-    { 
+    {
       skip:
         !viewingUsername ||
         (profileUser && !isSelf && isPrivate && !followStatus?.isFollowing),
     }
   );
-  
+
   const posts = useMemo(() => postsData?.posts || [], [postsData?.posts]);
 
   // Lấy saved posts (chỉ khi là profile của chính mình)
-  const { data: savedPostsData, isLoading: loadingSavedPosts } = useGetSavedPostsQuery(
-    { username: viewingUsername, page: 1, limit: 100 },
-    { skip: !isSelf || activeTab !== "saved" || !viewingUsername }
-  );
+  const { data: savedPostsData, isLoading: loadingSavedPosts } =
+    useGetSavedPostsQuery(
+      { username: viewingUsername, page: 1, limit: 100 },
+      { skip: !isSelf || activeTab !== "saved" || !viewingUsername }
+    );
 
   const savedPosts = useMemo(() => {
     if (!savedPostsData?.items) return [];
-    return savedPostsData.items.map(item => ({
+    return savedPostsData.items.map((item) => ({
       ...item.post,
-      previewImage: item.post.previewImage || item.post.media?.[0]?.mediaUrl || null,
+      previewImage:
+        item.post.previewImage || item.post.media?.[0]?.mediaUrl || null,
       reactionCount: item.post._count?.reactions || 0,
       commentCount: item.post._count?.comments || 0,
     }));
   }, [savedPostsData?.items]);
 
-  const { data: repostsData, isLoading: loadingReposts } = useGetUserRepostsQuery(
-    { username: viewingUsername },
-    { 
-      skip: 
-        activeTab !== "reposts" || 
-        !viewingUsername ||
-        (profileUser && !isSelf && isPrivate && !followStatus?.isFollowing)
-    }
-  );
+  const { data: repostsData, isLoading: loadingReposts } =
+    useGetUserRepostsQuery(
+      { username: viewingUsername },
+      {
+        skip:
+          activeTab !== "reposts" ||
+          !viewingUsername ||
+          (profileUser && !isSelf && isPrivate && !followStatus?.isFollowing),
+      }
+    );
 
   const reposts = useMemo(() => {
     if (!repostsData?.reposts) return [];
-    return repostsData.reposts.map(repost => {
+    return repostsData.reposts.map((repost) => {
       const isOriginalPostDeleted = repost.isOriginalPostDeleted || false;
       const originalPost = repost.post;
-      
+
       return {
         // ID của post gốc (luôn cần để dùng cho originalPost actions)
         id: originalPost?.id || repost.postId,
         // Chỉ spread post data nếu post không bị xóa hoặc ẩn
-        ...(isOriginalPostDeleted ? {} : (originalPost || {})),
-        previewImage: isOriginalPostDeleted ? null : (originalPost?.media?.[0]?.mediaUrl || null),
-        previewMediaType: isOriginalPostDeleted ? null : (originalPost?.media?.[0]?.mediaType || null),
+        ...(isOriginalPostDeleted ? {} : originalPost || {}),
+        previewImage: isOriginalPostDeleted
+          ? null
+          : originalPost?.media?.[0]?.mediaUrl || null,
+        previewMediaType: isOriginalPostDeleted
+          ? null
+          : originalPost?.media?.[0]?.mediaType || null,
         // Stats của repost (reaction và comment của chính repost)
         repostReactionCount: repost.reactionCount || 0,
         repostCommentCount: repost.commentCount || 0,
@@ -174,16 +204,40 @@ export default function Profile() {
         isSaved: repost.isSaved || false,
         isReposted: repost.isReposted || false,
         // Stats của bài gốc (từ API, có fallback về _count nếu cần)
-        originalReactionCount: isOriginalPostDeleted ? 0 : (originalPost?.originalReactionCount ?? originalPost?._count?.reactions ?? 0),
-        originalCommentCount: isOriginalPostDeleted ? 0 : (originalPost?.originalCommentCount ?? originalPost?._count?.comments ?? 0),
-        originalRepostsCount: isOriginalPostDeleted ? 0 : (originalPost?.originalRepostsCount ?? originalPost?._count?.reposts ?? 0),
-        originalSavesCount: isOriginalPostDeleted ? 0 : (originalPost?.originalSavesCount ?? originalPost?._count?.savedPosts ?? 0),
+        originalReactionCount: isOriginalPostDeleted
+          ? 0
+          : originalPost?.originalReactionCount ??
+            originalPost?._count?.reactions ??
+            0,
+        originalCommentCount: isOriginalPostDeleted
+          ? 0
+          : originalPost?.originalCommentCount ??
+            originalPost?._count?.comments ??
+            0,
+        originalRepostsCount: isOriginalPostDeleted
+          ? 0
+          : originalPost?.originalRepostsCount ??
+            originalPost?._count?.reposts ??
+            0,
+        originalSavesCount: isOriginalPostDeleted
+          ? 0
+          : originalPost?.originalSavesCount ??
+            originalPost?._count?.savedPosts ??
+            0,
         // Trạng thái tương tác của bài gốc (từ API)
-        originalIsLiked: isOriginalPostDeleted ? false : (originalPost?.originalIsLiked ?? false),
-        originalIsSaved: isOriginalPostDeleted ? false : (originalPost?.originalIsSaved ?? false),
-        originalIsReposted: isOriginalPostDeleted ? false : (originalPost?.originalIsReposted ?? false),
+        originalIsLiked: isOriginalPostDeleted
+          ? false
+          : originalPost?.originalIsLiked ?? false,
+        originalIsSaved: isOriginalPostDeleted
+          ? false
+          : originalPost?.originalIsSaved ?? false,
+        originalIsReposted: isOriginalPostDeleted
+          ? false
+          : originalPost?.originalIsReposted ?? false,
         // Thời gian của bài gốc
-        originalCreatedAt: isOriginalPostDeleted ? null : (originalPost?.originalCreatedAt ?? originalPost?.createdAt ?? null),
+        originalCreatedAt: isOriginalPostDeleted
+          ? null
+          : originalPost?.originalCreatedAt ?? originalPost?.createdAt ?? null,
         // Thông tin repost
         isRepost: true,
         repostedBy: repost.user,
@@ -194,19 +248,19 @@ export default function Profile() {
         isOriginalPostDeleted,
         // User và media của post gốc (chỉ khi không bị xóa hoặc ẩn) - override các giá trị từ spread
         user: isOriginalPostDeleted ? null : originalPost?.user,
-        media: isOriginalPostDeleted ? [] : (originalPost?.media || []),
-        content: isOriginalPostDeleted ? null : (originalPost?.content || null),
+        media: isOriginalPostDeleted ? [] : originalPost?.media || [],
+        content: isOriginalPostDeleted ? null : originalPost?.content || null,
       };
     });
   }, [repostsData?.reposts]);
 
   // Mở post modal khi có postId trong URL
   useEffect(() => {
-    const postIdFromUrl = searchParams.get('postId');
+    const postIdFromUrl = searchParams.get("postId");
     if (!postIdFromUrl || selectedPost) return;
 
     const postId = Number(postIdFromUrl);
-    const foundPost = posts.find(p => p.id === postId);
+    const foundPost = posts.find((p) => p.id === postId);
     if (foundPost) {
       setSelectedPost(foundPost);
     } else {
@@ -220,14 +274,14 @@ export default function Profile() {
     setSelectedPost(null);
     setShowSettingsMenu(false);
     setShowPrivacySettings(false);
-    
-    if (searchParams.get('postId')) {
-      searchParams.delete('postId');
+
+    if (searchParams.get("postId")) {
+      searchParams.delete("postId");
       setSearchParams(searchParams, { replace: true });
     }
-    
+
     if (postId) {
-      dispatch(postApi.util.invalidateTags([{ type: 'Post', id: postId }]));
+      dispatch(postApi.util.invalidateTags([{ type: "Post", id: postId }]));
     }
   };
 
@@ -241,8 +295,9 @@ export default function Profile() {
     setModalType(null);
   };
 
-  const isLoadingProfileData = (!isSelf && loadingPublicProfile) || loadingStats;
-  
+  const isLoadingProfileData =
+    (!isSelf && loadingPublicProfile) || loadingStats;
+
   if (isLoadingProfileData) {
     return <ProfileSkeleton />;
   }
@@ -276,7 +331,6 @@ export default function Profile() {
       e.target.value = "";
     }
   };
-
 
   return (
     <div className="w-full min-w-0 md:ml-[var(--feed-sidebar-width)] flex flex-1 justify-center pb-20 md:pb-0 overflow-x-hidden">
@@ -342,7 +396,10 @@ export default function Profile() {
               <span className="flex items-center gap-1.5">
                 <Grid size={16} className="text-gray-600 md:hidden" />
                 <strong>{postCount}</strong>
-                <span className="hidden md:inline text-gray-400"> bài viết</span>
+                <span className="hidden md:inline text-gray-400">
+                  {" "}
+                  bài viết
+                </span>
               </span>
               <span
                 onClick={() => openModal("followers")}
@@ -350,17 +407,26 @@ export default function Profile() {
               >
                 <Users size={16} className="text-gray-600 md:hidden" />
                 <strong>{followerCount}</strong>
-                <span className="hidden md:inline text-gray-400"> người theo dõi</span>
+                <span className="hidden md:inline text-gray-400">
+                  {" "}
+                  người theo dõi
+                </span>
               </span>
               <span
                 onClick={() => openModal("following")}
                 className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition"
               >
                 <UserPlus size={16} className="text-gray-600 md:hidden" />
-                <span className="hidden md:inline text-gray-400"> Đang theo dõi</span>
+                <span className="hidden md:inline text-gray-400">
+                  {" "}
+                  Đang theo dõi
+                </span>
 
                 <strong>{followingCount}</strong>
-                <span className="hidden md:inline text-gray-400"> người dùng</span>
+                <span className="hidden md:inline text-gray-400">
+                  {" "}
+                  người dùng
+                </span>
               </span>
             </div>
             {/* Tiểu sử */}
@@ -427,7 +493,7 @@ export default function Profile() {
             </div>
 
             {/* Posts Grid */}
-            <div className="min-h-[400px] md:min-h-[600px]">
+            <div className="min-h-[400px] md:min-h-[600px] mb-4">
               {activeTab === "posts" && (
                 <>
                   {loadingPosts ? (
@@ -443,14 +509,14 @@ export default function Profile() {
                     <div className="grid grid-cols-3 md:grid-cols-4 gap-1 animate-fadeIn">
                       {posts.map((post) => (
                         <PostGridItem
-                      key={post.id}
-                      post={post}
-                      onClick={() => {
-                        setSelectedPost(post);
-                        setShowSettingsMenu(false);
-                        setShowPrivacySettings(false);
-                      }}
-                    />
+                          key={post.id}
+                          post={post}
+                          onClick={() => {
+                            setSelectedPost(post);
+                            setShowSettingsMenu(false);
+                            setShowPrivacySettings(false);
+                          }}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -468,7 +534,9 @@ export default function Profile() {
                 <>
                   {loadingReposts ? (
                     <div className="text-center py-8">
-                      <p className="text-gray-500">Đang tải bài viết đã đăng lại...</p>
+                      <p className="text-gray-500">
+                        Đang tải bài viết đã đăng lại...
+                      </p>
                     </div>
                   ) : reposts.length > 0 ? (
                     <div className="space-y-6 animate-fadeIn mb-16">
@@ -479,13 +547,17 @@ export default function Profile() {
                           user={{
                             username: post.user?.username || "unknown",
                             fullName: post.user?.fullName || "",
-                            avatar: post.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg",
+                            avatar:
+                              post.user?.avatarUrl ||
+                              "/images/avatar-IG-mac-dinh-1.jpg",
                             verified: false,
                           }}
-                          media={post.media?.map(m => ({
-                            mediaUrl: m.mediaUrl,
-                            type: m.mediaType?.toLowerCase() || "image"
-                          })) || []}
+                          media={
+                            post.media?.map((m) => ({
+                              mediaUrl: m.mediaUrl,
+                              type: m.mediaType?.toLowerCase() || "image",
+                            })) || []
+                          }
                           content={post.content || ""}
                           createdAt={post.repostCreatedAt || post.createdAt}
                           likes={post.repostReactionCount || 0}
@@ -514,7 +586,9 @@ export default function Profile() {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                       <Repeat2 size={48} className="mb-4 opacity-50" />
-                      <p className="text-lg font-medium">Chưa có bài viết nào đã đăng lại</p>
+                      <p className="text-lg font-medium">
+                        Chưa có bài viết nào đã đăng lại
+                      </p>
                     </div>
                   )}
                 </>
@@ -548,12 +622,13 @@ export default function Profile() {
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                       <BookmarkCheck size={48} className="mb-4 opacity-50" />
-                      <p className="text-lg font-medium">Chưa có bài viết nào đã lưu</p>
+                      <p className="text-lg font-medium">
+                        Chưa có bài viết nào đã lưu
+                      </p>
                     </div>
                   )}
                 </>
               )}
-
             </div>
 
             {/* Modal for Post */}
@@ -701,7 +776,9 @@ export default function Profile() {
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200">
-              <h2 className="text-lg md:text-xl font-semibold">Cài đặt quyền riêng tư</h2>
+              <h2 className="text-lg md:text-xl font-semibold">
+                Cài đặt quyền riêng tư
+              </h2>
               <button
                 onClick={() => setShowUserPrivacyModal(false)}
                 className="p-1 hover:bg-gray-100 rounded-full transition"
@@ -715,9 +792,12 @@ export default function Profile() {
               {/* Tài khoản riêng tư */}
               <div className="flex items-start md:items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1">Tài khoản riêng tư</h3>
+                  <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1">
+                    Tài khoản riêng tư
+                  </h3>
                   <p className="text-xs md:text-sm text-gray-500">
-                    Chỉ những người bạn chấp nhận theo dõi mới thấy bài viết của bạn
+                    Chỉ những người bạn chấp nhận theo dõi mới thấy bài viết của
+                    bạn
                   </p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
@@ -803,7 +883,9 @@ export default function Profile() {
                 {/* Hiển thị trạng thái hoạt động */}
                 <div className="flex items-start md:items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1">Hiển thị trạng thái hoạt động</h3>
+                    <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1">
+                      Hiển thị trạng thái hoạt động
+                    </h3>
                     <p className="text-xs md:text-sm text-gray-500">
                       Cho phép mọi người thấy khi bạn đang online
                     </p>
@@ -840,10 +922,18 @@ export default function Profile() {
                     // Normalize enum values before sending
                     const payload = {
                       isPrivate: Boolean(userPrivacySettings.isPrivate),
-                      whoCanMessage: normalizePrivacyEnum(userPrivacySettings.whoCanMessage),
-                      whoCanTagMe: normalizePrivacyEnum(userPrivacySettings.whoCanTagMe),
-                      whoCanFindByUsername: normalizePrivacyEnum(userPrivacySettings.whoCanFindByUsername),
-                      showOnlineStatus: Boolean(userPrivacySettings.showOnlineStatus),
+                      whoCanMessage: normalizePrivacyEnum(
+                        userPrivacySettings.whoCanMessage
+                      ),
+                      whoCanTagMe: normalizePrivacyEnum(
+                        userPrivacySettings.whoCanTagMe
+                      ),
+                      whoCanFindByUsername: normalizePrivacyEnum(
+                        userPrivacySettings.whoCanFindByUsername
+                      ),
+                      showOnlineStatus: Boolean(
+                        userPrivacySettings.showOnlineStatus
+                      ),
                     };
                     await updatePrivacySettings(payload).unwrap();
                     toast.success("Đã cập nhật cài đặt quyền riêng tư");
