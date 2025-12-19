@@ -35,14 +35,11 @@ const FollowButton = ({
 
   // Xử lý khi nhấn nút nhắn tin
   const handleStartChat = async () => {
-    
-    
     if (!viewingUsername) {
       
       toast.error("Không thể lấy thông tin người dùng");
       return;
     }
-
     try {
       // Tạo conversation với username, backend sẽ tự tìm userId
       const result = await createConversation({

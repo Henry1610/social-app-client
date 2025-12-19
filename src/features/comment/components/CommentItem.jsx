@@ -1,8 +1,12 @@
-import { useState } from "react";
-import { Send, Trash2, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useGetRepliesByCommentQuery, useReplyCommentMutation } from "../api/commentApi";
+import { useGetReactionsQuery, useGetMyReactionQuery, useCreateOrUpdateReactionMutation, useGetReactionStatsQuery } from "../../reaction/api/reactionApi";
 import { formatTimeAgo } from "../../../utils/formatTimeAgo";
+import confirmToast from "../../../components/common/confirmToast";
+import ReactionsModal from "../../reaction/components/ReactionsModal";
+import { reactionTypes } from "../../reaction/constants/reactionTypes";
 
 // Component để hiển thị một comment và replies của nó (recursive, tối đa 3 cấp)
 const CommentItem = ({ 
@@ -19,18 +23,83 @@ const CommentItem = ({
   const [showReplies, setShowReplies] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isReplying, setIsReplying] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [localReactionCount, setLocalReactionCount] = useState(comment._count?.reactions || 0);
+  const [localIsLiked, setLocalIsLiked] = useState(false);
+  const [localReactionType, setLocalReactionType] = useState(null);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showReactionStats, setShowReactionStats] = useState(false);
+  const [showReactionsModal, setShowReactionsModal] = useState(false);
+  const hideTimeoutRef = useRef(null);
+  const statsHideTimeoutRef = useRef(null);
 
   const MAX_DEPTH = 3;
   const canReply = depth < MAX_DEPTH;
 
-  const handleUserClick = (username) => {
-    if (username) {
-      if (onClose) {
-        onClose();
-      }
-      navigate(`/${username}`);
+  // Fetch reactions data
+  const { data: reactionsData } = useGetReactionsQuery(
+    { targetId: comment.id, targetType: "COMMENT" },
+    { skip: !comment.id }
+  );
+  
+  const { data: myReactionData } = useGetMyReactionQuery(
+    { targetId: comment.id, targetType: "COMMENT" },
+    { skip: !comment.id || !currentUser?.id }
+  );
+
+  const { data: reactionStatsData, isLoading: loadingStats } = useGetReactionStatsQuery(
+    { targetId: comment.id, targetType: "COMMENT" },
+    { skip: !comment.id || localReactionCount === 0 }
+  );
+
+  const [createOrUpdateReaction, { isLoading: isReacting }] = useCreateOrUpdateReactionMutation();
+
+  // Update local state when data changes
+  const reactions = reactionsData?.reactions || [];
+  const myReaction = myReactionData?.reaction;
+  const reactionCount = reactions.length;
+  const isLiked = !!myReaction;
+  const currentReactionType = myReaction?.reactionType || null;
+
+  // Sync local state with fetched data
+  useEffect(() => {
+    setLocalReactionCount(reactionCount);
+    setLocalIsLiked(isLiked);
+    setLocalReactionType(currentReactionType);
+    // Ẩn picker nếu đã có reaction
+    if (isLiked) {
+      setShowReactionPicker(false);
     }
+  }, [reactionCount, isLiked, currentReactionType]);
+
+  // Cleanup timeout khi component unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      if (statsHideTimeoutRef.current) {
+        clearTimeout(statsHideTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Group reactions by type để hiển thị icons
+  const reactionsByType = reactions.reduce((acc, reaction) => {
+    const type = reaction.reactionType;
+    if (!acc[type]) {
+      acc[type] = true;
+    }
+    return acc;
+  }, {});
+
+  // Lấy các reaction types đã được sử dụng (tối đa 3)
+  const usedReactionTypes = Object.keys(reactionsByType).slice(0, 3);
+
+  const handleUserClick = (username) => {
+    if (onClose) {
+      onClose();
+    }
+    navigate(`/${username}`);
   };
 
   const { data: repliesData, isLoading: loadingReplies, refetch: refetchReplies } = useGetRepliesByCommentQuery(
@@ -48,7 +117,6 @@ const CommentItem = ({
     e.preventDefault();
     if (!replyText.trim() || isReplyingMutation || !canReply) return;
 
-    setErrorMessage("");
     try {
       setIsReplying(true);
       if (!showReplies) {
@@ -66,9 +134,63 @@ const CommentItem = ({
     } catch (error) {
       console.error("Error replying:", error);
       setIsReplying(false);
-      // Hiển thị thông báo lỗi từ server
-      const errorMsg = error?.data?.message || error?.message || "Không thể phản hồi. Vui lòng thử lại!";
-      setErrorMessage(errorMsg);
+    }
+  };
+
+  const handleReaction = async (reactionType = null, e = null) => {
+    // Stop propagation nếu có event (từ nút Thích)
+    if (e) {
+      e.stopPropagation();
+    }
+    
+    if (isReacting || !currentUser) return;
+
+    // Nếu reactionType là null, dùng logic toggle: unreact nếu đã có, LIKE nếu chưa có
+    const targetType = reactionType ?? (localReactionType || 'LIKE');
+    const currentType = localReactionType;
+    const isSameReaction = currentType === targetType;
+
+    // Nếu đang bỏ reaction (click vào cùng loại đã có), cần xác nhận
+    if (localIsLiked && isSameReaction) {
+      const confirm = await confirmToast("Bạn có chắc chắn muốn bỏ thích bình luận này?");
+      if (!confirm) return;
+    }
+
+    // Optimistic update
+    const wasLiked = localIsLiked;
+    const oldCount = localReactionCount;
+    const wasSameType = currentType === targetType;
+    
+    let newCount = oldCount;
+    if (wasLiked && wasSameType) {
+      // Bỏ reaction
+      newCount = oldCount - 1;
+      setLocalIsLiked(false);
+      setLocalReactionType(null);
+    } else if (wasLiked && !wasSameType) {
+      // Đổi reaction type (giữ nguyên count)
+      setLocalReactionType(targetType);
+    } else {
+      // Thêm reaction mới
+      newCount = oldCount + 1;
+      setLocalIsLiked(true);
+      setLocalReactionType(targetType);
+    }
+    setLocalReactionCount(newCount);
+    setShowReactionPicker(false);
+
+    try {
+      await createOrUpdateReaction({
+        targetId: comment.id,
+        targetType: "COMMENT",
+        type: targetType,
+      }).unwrap();
+    } catch (error) {
+      // Revert optimistic update nếu có lỗi
+      setLocalIsLiked(wasLiked);
+      setLocalReactionCount(oldCount);
+      setLocalReactionType(currentType);
+      console.error("Error toggling reaction:", error);
     }
   };
 
@@ -81,9 +203,7 @@ const CommentItem = ({
 
   // Tính border-left width dựa trên depth
   const getBorderWidth = () => {
-    if (depth === 1) return '0px';
-    if (depth === 2) return '2px';
-    return '2px';
+    return depth === 1 ? '0px' : '2px';
   };
 
   return (
@@ -146,28 +266,195 @@ const CommentItem = ({
           )}
         </div>
         
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
-          <p className="text-xs text-gray-500">
-            {formatTimeAgo(comment.createdAt)}
-          </p>
-          
-          {canReply ? (
+        <div className="flex items-center justify-between mt-1">
+          {/* Bên trái: Thời gian, Thích, Phản hồi */}
+          <div className="flex items-center gap-3">
+            <p className="text-xs text-gray-500 flex items-center">
+              {formatTimeAgo(comment.createdAt)}
+            </p>
+            
+            {/* Reaction Button với Picker */}
+            <div className="relative flex items-center">
             <button
-              onClick={() => {
-                setIsReplying(!isReplying);
-                setErrorMessage("");
+              onClick={(e) => handleReaction(null, e)}
+              onMouseEnter={() => {
+                // Chỉ hiển thị picker nếu chưa có reaction
+                if (!localIsLiked) {
+                  if (hideTimeoutRef.current) {
+                    clearTimeout(hideTimeoutRef.current);
+                    hideTimeoutRef.current = null;
+                  }
+                  setShowReactionPicker(true);
+                }
               }}
-              className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+              onMouseLeave={() => {
+                if (!localIsLiked) {
+                  hideTimeoutRef.current = setTimeout(() => {
+                    setShowReactionPicker(false);
+                  }, 200);
+                }
+              }}
+              disabled={isReacting || !currentUser}
+              className={`text-xs transition-colors relative flex items-center ${
+                localIsLiked
+                  ? "text-blue-600 hover:text-blue-700 font-medium"
+                  : "text-gray-500 hover:text-gray-700 font-medium"
+              } ${isReacting ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              Phản hồi
-            </button>
-          ) : (
-            <span className="text-xs text-gray-400 italic" title="Đã đạt giới hạn tối đa 3 cấp nested">
-              Không thể phản hồi
-            </span>
+              {localIsLiked && localReactionType ? (
+                <span className={reactionTypes.find(r => r.type === localReactionType)?.color || 'text-blue-600'}>
+                  {reactionTypes.find(r => r.type === localReactionType)?.label || 'Thích'}
+                </span>
+              ) : (
+                <span>Thích</span>
+              )}
+              </button>
+              
+              {/* Reaction Picker Menu */}
+              {showReactionPicker && !isReacting && currentUser && (
+                <div
+                  className="absolute bottom-full left-0 mb-0.5 bg-white rounded-full shadow-lg border border-gray-200 p-2 flex items-center gap-2 z-50"
+                  onMouseEnter={() => {
+                    if (hideTimeoutRef.current) {
+                      clearTimeout(hideTimeoutRef.current);
+                      hideTimeoutRef.current = null;
+                    }
+                    setShowReactionPicker(true);
+                  }}
+                  onMouseLeave={() => {
+                    hideTimeoutRef.current = setTimeout(() => {
+                      setShowReactionPicker(false);
+                    }, 200);
+                  }}
+                >
+                  {reactionTypes.map((reaction) => {
+                    const IconComponent = reaction.icon;
+                    return (
+                      <button
+                        key={reaction.type}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReaction(reaction.type);
+                        }}
+                        className={`w-12 h-12 flex items-center justify-center rounded-full hover:scale-125 transition-transform ${
+                          localReactionType === reaction.type
+                            ? "bg-blue-50 ring-2 ring-blue-500"
+                            : "hover:bg-gray-100"
+                        }`}
+                        title={reaction.label}
+                      >
+                        <IconComponent size={32} />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            {canReply ? (
+              <button
+                onClick={() => setIsReplying(!isReplying)}
+                className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors flex items-center"
+              >
+                Phản hồi
+              </button>
+            ) : (
+              <span className="text-xs text-gray-400 italic flex items-center" title="Đã đạt giới hạn tối đa 3 cấp nested">
+                Không thể phản hồi
+              </span>
+            )}
+          </div>
+
+          {/* Bên phải: Số lượng và icon reactions */}
+          {localReactionCount > 0 && (
+            <div 
+              className="relative flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowReactionsModal(true);
+              }}
+              onMouseEnter={() => {
+                if (statsHideTimeoutRef.current) {
+                  clearTimeout(statsHideTimeoutRef.current);
+                  statsHideTimeoutRef.current = null;
+                }
+                setShowReactionStats(true);
+              }}
+              onMouseLeave={() => {
+                statsHideTimeoutRef.current = setTimeout(() => {
+                  setShowReactionStats(false);
+                }, 200);
+              }}
+            >
+              <span className="text-xs text-gray-700 font-medium">
+                {localReactionCount > 1000 
+                  ? `${(localReactionCount / 1000).toFixed(1)}K`.replace('.0', '')
+                  : localReactionCount.toLocaleString()}
+              </span>
+              <div className="flex items-center gap-0.5">
+                {usedReactionTypes.map((type) => {
+                  const reaction = reactionTypes.find(r => r.type === type);
+                  if (!reaction) return null;
+                  const IconComponent = reaction.icon;
+                  return (
+                    <span key={type} className="flex items-center">
+                      <IconComponent size={16} />
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Reaction Stats Popup */}
+              {showReactionStats && (
+                <div
+                  className="absolute bottom-full right-0 mb-2 bg-gray-800 text-white rounded-lg shadow-lg p-3 min-w-[200px] z-50"
+                  onMouseEnter={() => {
+                    if (statsHideTimeoutRef.current) {
+                      clearTimeout(statsHideTimeoutRef.current);
+                      statsHideTimeoutRef.current = null;
+                    }
+                    setShowReactionStats(true);
+                  }}
+                  onMouseLeave={() => {
+                    statsHideTimeoutRef.current = setTimeout(() => {
+                      setShowReactionStats(false);
+                    }, 200);
+                  }}
+                >
+                  {loadingStats ? (
+                    <div className="text-sm text-gray-300">Đang tải...</div>
+                  ) : reactionStatsData?.stats ? (
+                    <div className="space-y-2">
+                      {Object.entries(reactionStatsData.stats)
+                        .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                        .map(([type, count]) => {
+                          const reactionType = reactionTypes.find(r => r.type === type);
+                          if (!reactionType) return null;
+                          const IconComponent = reactionType.icon;
+                          return (
+                            <div key={type} className="flex items-center gap-2">
+                              <IconComponent size={20} />
+                              <span className="text-sm font-medium text-white">
+                                {count > 1000 
+                                  ? `${(count / 1000).toFixed(1)}K`.replace('.0', '')
+                                  : count.toLocaleString()}
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-300">Không có dữ liệu</div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
-          
-          {comment._count?.replies > 0 && (
+        </div>
+
+        {/* Replies toggle button - separate line */}
+        {comment._count?.replies > 0 && (
+          <div className="mt-2">
             <button
               onClick={() => setShowReplies(!showReplies)}
               className="text-xs text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1 transition-colors"
@@ -184,14 +471,6 @@ const CommentItem = ({
                 </>
               )}
             </button>
-          )}
-        </div>
-
-        {/* Error Message */}
-        {errorMessage && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded-md">
-            <AlertCircle size={14} />
-            <span>{errorMessage}</span>
           </div>
         )}
 
@@ -207,10 +486,7 @@ const CommentItem = ({
               <input
                 type="text"
                 value={replyText}
-                onChange={(e) => {
-                  setReplyText(e.target.value);
-                  setErrorMessage("");
-                }}
+                onChange={(e) => setReplyText(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -262,6 +538,15 @@ const CommentItem = ({
           </div>
         )}
       </div>
+
+      {/* Reactions Modal */}
+      <ReactionsModal
+        isOpen={showReactionsModal}
+        onClose={() => setShowReactionsModal(false)}
+        targetId={comment.id}
+        targetType="COMMENT"
+        currentUserId={currentUser?.id}
+      />
     </div>
   );
 };

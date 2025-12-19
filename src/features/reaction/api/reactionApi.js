@@ -12,6 +12,7 @@ export const reactionApi = baseApi.injectEndpoints({
         const tags = [
           { type: 'Reaction', id: `${targetType}_${targetId}_me` },
           { type: 'Reaction', id: `${targetType}_${targetId}` },
+          { type: 'Reaction', id: `${targetType}_${targetId}_stats` },
         ];
         
         // Chỉ invalidate Post tag khi targetType là POST và có targetId
@@ -47,6 +48,16 @@ export const reactionApi = baseApi.injectEndpoints({
         { type: 'Reaction', id: `${targetType}_${targetId}_me` },
       ],
     }),
+
+    getReactionStats: builder.query({
+      query: ({ targetId, targetType }) => ({
+        url: '/user/reactions/stats',
+        params: { targetId, targetType },
+      }),
+      providesTags: (result, error, { targetId, targetType }) => [
+        { type: 'Reaction', id: `${targetType}_${targetId}_stats` },
+      ],
+    }),
   }),
 });
 
@@ -54,5 +65,6 @@ export const {
   useCreateOrUpdateReactionMutation,
   useGetReactionsQuery,
   useGetMyReactionQuery,
+  useGetReactionStatsQuery,
 } = reactionApi;
 
