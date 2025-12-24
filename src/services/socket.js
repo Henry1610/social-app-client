@@ -48,6 +48,7 @@ class SocketService {
     this.socket.on('chat:new_message', (data) => this.emit('chat:new_message', data));
     this.socket.on('chat:message_edited', (data) => this.emit('chat:message_edited', data));
     this.socket.on('chat:message_recalled', (data) => this.emit('chat:message_recalled', data));
+    this.socket.on('chat:message_reaction_updated', (data) => this.emit('chat:message_reaction_updated', data));
     this.socket.on('chat:user_typing', (data) => this.emit('chat:user_typing', data));
     this.socket.on('chat:user_status', (data) => this.emit('chat:user_status', data));
     this.socket.on('chat:unread_count_update', (data) => this.emit('chat:unread_count_update', data));
@@ -101,6 +102,12 @@ class SocketService {
   recallMessage(data) {
     if (this.socket && this.isConnected) {
       this.socket.emit('chat:recall_message', data);
+    }
+  }
+
+  reactMessage(data) {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('chat:react_message', data);
     }
   }
 

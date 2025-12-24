@@ -77,6 +77,7 @@ const ChatMain = ({ onStartNewMessage }) => {
     scrollToMessage,
     handleRecallMessage,
     handlePinMessage,
+    handleReactMessage,
     handleLeaveGroup,
     handleRemoveMember,
       isLastMessageInConversation,
@@ -200,6 +201,7 @@ const ChatMain = ({ onStartNewMessage }) => {
                             onScrollToMessage={scrollToMessage}
                             onRecallMessage={handleRecallMessage}
                             onPinMessage={handlePinMessage}
+                            onReactMessage={handleReactMessage}
                           />
                           )}
                         </div>

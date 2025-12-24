@@ -9,10 +9,12 @@ import { toast } from "sonner";
 import { formatTimeAgo } from "../../../utils/formatTimeAgo";
 import { NotificationSkeleton } from "../../../components/common/skeletons";
 import { RefreshCw } from "lucide-react";
+import { useChat } from "../../../contexts/ChatContext";
 
 export const NotificationCenter = () => {
   const navigate = useNavigate();
   const currentUser = useSelector(selectCurrentUser);
+  const { openChat } = useChat();
 
   const {
     data: notificationsData,
@@ -49,11 +51,29 @@ export const NotificationCenter = () => {
       }
     } 
     // Thông báo comment/like/repost - mở post modal
-    else if (["COMMENT", "REACTION", "REPOST"].includes(n.type) && n.targetId && n.targetType === "POST") {
-      // Navigate đến profile hiện tại với postId, Profile component sẽ tự mở modal
+    else if (["COMMENT", "REACTION", "REPOST"].includes(n.type) && n.targetId) {
+      // Xử lý notification cho reaction message - redirect đến conversation
+      if (n.type === "REACTION" && n.targetType === "MESSAGE") {
+        const conversationId = n.metadata?.conversationId;
+        if (conversationId) {
+          openChat({ conversationId: conversationId });
+        }
+        return;
+      }
+      
       const currentUsername = currentUser?.username;
       if (currentUsername) {
-        navigate(`/${currentUsername}?postId=${n.targetId}`);
+        // Xử lý notification cho repost
+        if (n.targetType === "REPOST") {
+          const repostId = n.targetId || n.metadata?.repostId;
+          if (repostId) {
+            navigate(`/${currentUsername}?repostId=${repostId}`);
+          }
+        } 
+        // Xử lý notification cho post
+        else if (n.targetType === "POST") {
+          navigate(`/${currentUsername}?postId=${n.targetId}`);
+        }
       }
     }
     // Thông báo reply comment - mở post modal với commentId

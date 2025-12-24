@@ -12,11 +12,12 @@ import {
   useTogglePinMessageMutation,
 } from "../api/chatApi";
 import { useChat } from "../../../contexts/ChatContext";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import socketService from "../../../services/socket";
 import { toast } from "sonner";
 import confirmToast from "../../../components/common/confirmToast";
 import { getMessageStatusIcon } from "../../../utils/getMessageStatusIcon";
+import { reactionApi } from "../../reaction/api/reactionApi";
 
 /**
  * Custom hook chứa tất cả logic của chat
@@ -26,6 +27,7 @@ import { getMessageStatusIcon } from "../../../utils/getMessageStatusIcon";
  * @param {Function} props.onClose - Callback khi đóng (optional, dùng cho modal)
  */
 export const useChatLogic = ({ conversationId: propConversationId, username: propUsername, onClose }) => {
+  const dispatch = useDispatch();
   const { selectedConversation, setSelectedConversation } = useChat();
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
@@ -295,21 +297,34 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
       }
     };
 
+    const handleMessageReactionUpdated = (data) => {
+      if (data.conversationId === selectedConversation?.id && data.messageId) {
+        dispatch(
+          reactionApi.util.invalidateTags([
+            { type: 'Reaction', id: `MESSAGE_${data.messageId}` },
+            { type: 'Reaction', id: `MESSAGE_${data.messageId}_stats` },
+            { type: 'Reaction', id: `MESSAGE_${data.messageId}_me` },
+          ])
+        );
+      }
+    };
+
     socketService.on("chat:new_message", handleNewMessage);
     socketService.on("chat:message_edited", handleMessageEdited);
     socketService.on("chat:message_recalled", handleMessageRecalled);
     socketService.on("chat:message_pinned", handleMessagePinned);
+    socketService.on("chat:message_reaction_updated", handleMessageReactionUpdated);
     socketService.on("chat:user_typing", handleTyping);
     socketService.on("message:status_update", handleMessageStatusUpdate);
     socketService.on("chat:error", handleChatError);
     socketService.on("chat:warning", handleChatWarning);
     socketService.on("chat:conversation_updated", handleConversationUpdate);
-
     return () => {
       socketService.off("chat:new_message", handleNewMessage);
       socketService.off("chat:message_edited", handleMessageEdited);
       socketService.off("chat:message_recalled", handleMessageRecalled);
       socketService.off("chat:message_pinned", handleMessagePinned);
+      socketService.off("chat:message_reaction_updated", handleMessageReactionUpdated);
       socketService.off("chat:user_typing", handleTyping);
       socketService.off("message:status_update", handleMessageStatusUpdate);
       socketService.off("chat:error", handleChatError);
@@ -317,7 +332,7 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
       socketService.off("chat:conversation_updated", handleConversationUpdate);
       socketService.leaveConversation(selectedConversation.id);
     };
-  }, [selectedConversation?.id, currentUserId, refetch, refetchConversation, refetchMembers, navigate, onClose, setSelectedConversation]);
+  }, [selectedConversation?.id, currentUserId, refetch, refetchConversation, refetchMembers, navigate, onClose, setSelectedConversation, dispatch]);
 
   useEffect(() => {
     scrollToBottom();
@@ -605,6 +620,22 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
     }
   };
 
+  const handleReactMessage = (messageId, reactionType = 'LIKE') => {
+    if (!selectedConversation?.id || !messageId) return;
+    
+    try {
+      socketService.reactMessage({
+        messageId: parseInt(messageId),
+        conversationId: selectedConversation.id,
+        reactionType: reactionType.toUpperCase()
+      });
+      setShowMessageMenu(null);
+    } catch (error) {
+      console.error("Error reacting to message:", error);
+      toast.error("Có lỗi xảy ra khi react tin nhắn");
+    }
+  };
+
   // Get message status icon using utility function
   const getMessageStatusIconWrapper = (message, compact = false) => {
     return getMessageStatusIcon({
@@ -668,6 +699,7 @@ export const useChatLogic = ({ conversationId: propConversationId, username: pro
     scrollToMessage,
     handleRecallMessage,
     handlePinMessage,
+    handleReactMessage,
     handleLeaveGroup,
     handleRemoveMember,
     isLastMessageInConversation,

@@ -1,5 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
-import { MoreHorizontal, Edit, Copy, Undo, Reply, Pin, File, Download, FileText, FileImage, FileVideo, Archive, FileSpreadsheet } from "lucide-react";
+import { MoreHorizontal, Edit, Copy, Undo, Reply, Pin, File, Download, FileText, FileImage, FileVideo, Archive, FileSpreadsheet, Smile } from "lucide-react";
+import { reactionTypes } from "../../reaction/constants/reactionTypes";
+import { useGetReactionsQuery, useGetReactionStatsQuery } from "../../reaction/api/reactionApi";
+import ReactionsModal from "../../reaction/components/ReactionsModal";
 
 const MessageItem = ({
   message,
@@ -23,6 +26,7 @@ const MessageItem = ({
   onScrollToMessage,
   onRecallMessage,
   onPinMessage,
+  onReactMessage,
   compact = false, // Prop để điều chỉnh kích thước cho modal
 }) => {
   const menuButtonRef = useRef(null);
@@ -33,6 +37,50 @@ const MessageItem = ({
   });
   const [previewImage, setPreviewImage] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showReactionStats, setShowReactionStats] = useState(false);
+  const [showReactionsModal, setShowReactionsModal] = useState(false);
+  const hideTimeoutRef = useRef(null);
+  const statsHideTimeoutRef = useRef(null);
+
+  // Fetch reactions data
+  const { data: reactionsData } = useGetReactionsQuery(
+    { targetId: message.id, targetType: "MESSAGE" },
+    { skip: !message.id || message.isRecalled }
+  );
+
+  const { data: reactionStatsData, isLoading: loadingStats } = useGetReactionStatsQuery(
+    { targetId: message.id, targetType: "MESSAGE" },
+    { skip: !message.id || message.isRecalled }
+  );
+
+  // Update local state when data changes
+  const reactions = reactionsData?.reactions || [];
+  const reactionCount = reactions.length;
+
+  // Group reactions by type để hiển thị icons
+  const reactionsByType = reactions.reduce((acc, reaction) => {
+    const type = reaction.reactionType;
+    if (!acc[type]) {
+      acc[type] = true;
+    }
+    return acc;
+  }, {});
+
+  // Lấy các reaction types đã được sử dụng (tối đa 3)
+  const usedReactionTypes = Object.keys(reactionsByType).slice(0, 3);
+
+  // Cleanup timeout khi component unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      if (statsHideTimeoutRef.current) {
+        clearTimeout(statsHideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Helper function để lấy icon dựa trên file type
   const getFileIcon = (mediaType, filename) => {
@@ -351,6 +399,167 @@ const MessageItem = ({
               </div>
             )}
 
+            {/* Reactions display - nằm ở góc dưới ngoài message bubble */}
+            {!message.isRecalled && reactionCount > 0 && (
+              <div 
+                className={`absolute -bottom-2 flex items-center gap-0.5 cursor-pointer px-0.5 py-0.5 rounded-full bg-white border-[0.5px] border-white/30 shadow-md hover:bg-gray-50 transition-colors z-10 ${
+                  isOwnMessage && isLastMessageInConversation(message) && !(message.updatedAt && message.updatedAt !== message.createdAt)
+                    ? 'left-1' // Nếu có status icon ở bên phải, đặt reactions bên trái
+                    : isOwnMessage 
+                    ? 'right-1' 
+                    : 'left-3'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowReactionsModal(true);
+                }}
+                onMouseEnter={() => {
+                  if (statsHideTimeoutRef.current) {
+                    clearTimeout(statsHideTimeoutRef.current);
+                    statsHideTimeoutRef.current = null;
+                  }
+                  setShowReactionStats(true);
+                }}
+                onMouseLeave={() => {
+                  statsHideTimeoutRef.current = setTimeout(() => {
+                    setShowReactionStats(false);
+                  }, 200);
+                }}
+              >
+                <div className="flex items-center -space-x-2">
+                  {usedReactionTypes.map((type) => {
+                    const reaction = reactionTypes.find(r => r.type === type);
+                    if (!reaction) return null;
+                    const IconComponent = reaction.icon;
+                    return (
+                      <span key={type} className="flex items-center relative">
+                        <IconComponent size={16} className="text-gray-700" />
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Reaction Stats Popup */}
+                {showReactionStats && (
+                  <div
+                    className={`absolute bottom-full mb-2 bg-gray-800 text-white rounded-lg shadow-lg p-3 min-w-[200px] z-50 ${
+                      isOwnMessage ? 'right-0' : 'left-0'
+                    }`}
+                    onMouseEnter={() => {
+                      if (statsHideTimeoutRef.current) {
+                        clearTimeout(statsHideTimeoutRef.current);
+                        statsHideTimeoutRef.current = null;
+                      }
+                      setShowReactionStats(true);
+                    }}
+                    onMouseLeave={() => {
+                      statsHideTimeoutRef.current = setTimeout(() => {
+                        setShowReactionStats(false);
+                      }, 200);
+                    }}
+                  >
+                    {loadingStats ? (
+                      <div className="text-sm text-gray-300">Đang tải...</div>
+                    ) : reactionStatsData?.stats ? (
+                      <div className="space-y-2">
+                        {Object.entries(reactionStatsData.stats)
+                          .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                          .map(([type, count]) => {
+                            const reactionType = reactionTypes.find(r => r.type === type);
+                            if (!reactionType) return null;
+                            const IconComponent = reactionType.icon;
+                            return (
+                              <div key={type} className="flex items-center gap-2">
+                                <IconComponent size={20} />
+                                <span className="text-sm font-medium text-white">
+                                  {count > 1000 
+                                    ? `${(count / 1000).toFixed(1)}K`.replace('.0', '')
+                                    : count.toLocaleString()}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-300">Không có dữ liệu</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Reaction Picker Button - nằm ngang hàng với menu button */}
+            {!message.isRecalled && onReactMessage && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowReactionPicker(!showReactionPicker);
+                  }}
+                  onMouseEnter={() => {
+                    if (hideTimeoutRef.current) {
+                      clearTimeout(hideTimeoutRef.current);
+                      hideTimeoutRef.current = null;
+                    }
+                    setShowReactionPicker(true);
+                  }}
+                  onMouseLeave={() => {
+                    hideTimeoutRef.current = setTimeout(() => {
+                      setShowReactionPicker(false);
+                    }, 200);
+                  }}
+                  className="absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-black/10 pointer-events-auto"
+                  style={{
+                    [isOwnMessage ? "left" : "right"]: "-60px",
+                  }}
+                >
+                  <Smile className="w-4 h-4 text-gray-500" />
+                </button>
+
+                {/* Reaction Picker Popup */}
+                {showReactionPicker && (
+                  <div
+                    className="absolute bottom-full mb-2 bg-white rounded-full shadow-lg border border-gray-200 p-2 flex items-center gap-2 z-50"
+                    style={{
+                      [isOwnMessage ? "left" : "right"]: "-60px",
+                      transform: "translateX(50%)",
+                      ...(isOwnMessage ? { transform: "translateX(-50%)" } : {}),
+                    }}
+                    onMouseEnter={() => {
+                      if (hideTimeoutRef.current) {
+                        clearTimeout(hideTimeoutRef.current);
+                        hideTimeoutRef.current = null;
+                      }
+                      setShowReactionPicker(true);
+                    }}
+                    onMouseLeave={() => {
+                      hideTimeoutRef.current = setTimeout(() => {
+                        setShowReactionPicker(false);
+                      }, 200);
+                    }}
+                  >
+                    {reactionTypes.map((reaction) => {
+                      const IconComponent = reaction.icon;
+                      return (
+                        <button
+                          key={reaction.type}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReactMessage(message.id, reaction.type);
+                            setShowReactionPicker(false);
+                          }}
+                          className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-125 transition-transform hover:bg-gray-100"
+                          title={reaction.label}
+                        >
+                          <IconComponent size={28} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Hover menu button */}
             <button
               ref={menuButtonRef}
@@ -529,6 +738,15 @@ const MessageItem = ({
           />
         </div>
       )}
+
+      {/* Reactions Modal */}
+      <ReactionsModal
+        isOpen={showReactionsModal}
+        onClose={() => setShowReactionsModal(false)}
+        targetId={message.id}
+        targetType="MESSAGE"
+        currentUserId={currentUserId}
+      />
     </div>
   );
 };
