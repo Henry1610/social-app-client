@@ -35,6 +35,16 @@ export const repostApi = baseApi.injectEndpoints({
       providesTags: ['Repost'],
     }),
 
+    // Lấy repost theo ID với post gốc
+    getRepostById: builder.query({
+      query: (repostId) => ({
+        url: `/user/reposts/${repostId}`,
+      }),
+      providesTags: (result, error, repostId) => [
+        { type: 'Repost', id: repostId },
+      ],
+    }),
+
     // Đánh dấu repost đã xem
     markRepostAsViewed: builder.mutation({
       query: (repostId) => ({
@@ -49,6 +59,7 @@ export const {
   useRepostPostMutation,
   useUndoRepostMutation,
   useGetUserRepostsQuery,
+  useGetRepostByIdQuery,
   useMarkRepostAsViewedMutation,
 } = repostApi;
 

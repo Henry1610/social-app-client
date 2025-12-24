@@ -18,11 +18,12 @@ import CommentItem from "../../comment/components/CommentItem";
 import {
   useGetMyReactionQuery,
   useCreateOrUpdateReactionMutation,
-  useGetReactionsQuery,
+  useGetReactionStatsQuery,
 } from "../../reaction/api/reactionApi";
 import {
   useRepostPostMutation,
   useUndoRepostMutation,
+  useGetRepostByIdQuery,
 } from "../../repost/api/repostApi";
 import {
   X,
@@ -33,6 +34,7 @@ import {
   Image,
   MessageCircle,
   ArrowLeft,
+  Repeat2,
 } from "lucide-react";
 import { toast } from "sonner";
 import confirmToast from "../../../components/common/confirmToast";
@@ -71,15 +73,30 @@ const PostDetailModal = ({
   const settingsMenuRef = useRef(null);
   const privacySettingsRef = useRef(null);
 
-  const { data: fullPostData } = useGetPostByIdQuery(postId || 0, {
-    skip: !postId,
+  const isRepost = !!repostId;
+
+  // Fetch repost nếu chỉ có repostId (đã bao gồm post gốc)
+  const { data: repostData, isLoading: loadingRepost } = useGetRepostByIdQuery(repostId || 0, {
+    skip: !repostId || !!postId,
   });
 
-  const selectedPostFull = fullPostData?.post;
+  // Fetch post nếu chỉ có postId
+  const { data: fullPostData, isLoading: loadingPost } = useGetPostByIdQuery(postId || 0, {
+    skip: !postId || !!repostId,
+  });
+
+  // Lấy post từ repost hoặc từ query trực tiếp
+  const selectedPostFull = isRepost ? repostData?.repost?.post : fullPostData?.post;
   const isPostOwner =
     selectedPostFull && currentUser?.id === selectedPostFull.userId;
-  const isRepost = !!repostId;
-  console.log(selectedPostFull);
+
+  // Khi là repost, lấy createdAt từ repost; user thì từ post gốc, repostedBy từ repost
+  const displayUser = selectedPostFull?.user; // User của post gốc
+  const repostedByUser = isRepost && repostData?.repost?.user ? repostData.repost.user : null; // User của người repost
+  const displayCreatedAt = isRepost && repostData?.repost?.createdAt ? repostData.repost.createdAt : selectedPostFull?.createdAt;
+  
+  // Đảm bảo có dữ liệu trước khi render
+  const isLoading = isRepost ? loadingRepost : loadingPost;
   
   const {
     data: commentsData,
@@ -113,15 +130,15 @@ const PostDetailModal = ({
   const myReaction = myReactionData?.reaction;
   const isLiked = !!myReaction;
 
-  // Fetch stats của repost nếu là repost
-  const { data: repostReactions } = useGetReactionsQuery(
+  // Fetch reaction count của repost nếu là repost (dùng stats thay vì fetch toàn bộ reactions)
+  const { data: repostStatsData } = useGetReactionStatsQuery(
     { targetId: repostId, targetType: "REPOST" },
     { skip: !isRepost || !repostId }
   );
 
   // Stats để hiển thị: nếu là repost thì dùng stats của repost, không thì dùng stats của post
   const displayReactionCount = isRepost
-    ? repostReactions?.reactions?.length || 0
+    ? repostStatsData?.total || 0
     : selectedPostFull?._count?.reactions || 0;
   const displayCommentCount = isRepost
     ? commentsData?.pagination?.totalComments || 0
@@ -401,7 +418,10 @@ const PostDetailModal = ({
     onClose();
   };
 
-  if (!postId || !selectedPostFull) return null;
+  // Cho phép render khi có postId hoặc repostId (và đang fetch)
+  if (!postId && !repostId) return null;
+  if (isLoading) return null; // Chờ fetch xong
+  if (!selectedPostFull) return null; // Chờ fetch post/repost xong
 
   return (
     <div
@@ -459,17 +479,42 @@ const PostDetailModal = ({
           <div className="flex-shrink-0 p-3 md:p-4 border-b border-gray-300 bg-white">
             <div className="flex items-center gap-3">
               <img
-                src={selectedPostFull.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                alt={selectedPostFull.user?.username}
+                src={repostedByUser?.avatarUrl || displayUser?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                alt={repostedByUser?.username || displayUser?.username}
                 className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">
-                  {selectedPostFull.user?.username}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {formatTimeAgo(selectedPostFull.createdAt)}
-                </p>
+                {isRepost && repostedByUser ? (
+                  <>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button
+                        onClick={() => navigate(`/${displayUser?.username}`)}
+                        className="text-sm font-semibold text-gray-900 hover:underline"
+                      >
+                        {displayUser?.username}
+                      </button>
+                      <Repeat2 size={12} className="text-gray-500 flex-shrink-0" />
+                      <button
+                        onClick={() => navigate(`/${repostedByUser.username}`)}
+                        className="text-sm font-semibold text-gray-900 hover:underline"
+                      >
+                        {repostedByUser.username}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {formatTimeAgo(displayCreatedAt)}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {displayUser?.username}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatTimeAgo(displayCreatedAt)}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -487,10 +532,11 @@ const PostDetailModal = ({
           <div className="flex flex-col pb-2 border-b border-gray-300 flex-shrink-0">
             <div className="flex items-start justify-between mb-2">
               <PostHeader
-                user={selectedPostFull.user}
-                createdAt={selectedPostFull.createdAt}
+                user={displayUser}
+                createdAt={displayCreatedAt}
                 content={selectedPostFull.content}
-                isRepost={false}
+                isRepost={isRepost}
+                repostedBy={repostedByUser}
                 onNavigate={navigate}
                 size="normal"
               />

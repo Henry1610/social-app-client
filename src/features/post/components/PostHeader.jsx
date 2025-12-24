@@ -43,13 +43,20 @@ const PostHeader = ({
           {isRepost && repostedBy ? (
             <>
               <button
+                onClick={() => onNavigate(`/${user?.username}`)}
+                className={`font-semibold ${textSize} hover:underline`}
+              >
+                {user?.username}
+              </button>
+
+              <Repeat2 size={14} className="text-gray-500 flex-shrink-0" />
+
+              <button
                 onClick={() => onNavigate(`/${repostedBy.username}`)}
                 className={`font-semibold ${textSize} hover:underline`}
               >
                 {repostedBy.username}
               </button>
-
-              <Repeat2 size={14} className="text-gray-500 flex-shrink-0" />
             </>
           ) : (
             <>

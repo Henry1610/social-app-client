@@ -254,20 +254,38 @@ export default function Profile() {
     });
   }, [repostsData?.reposts]);
 
-  // Mở post modal khi có postId trong URL
+  // Mở post/repost modal khi có postId hoặc repostId trong URL
   useEffect(() => {
-    const postIdFromUrl = searchParams.get("postId");
-    if (!postIdFromUrl || selectedPost) return;
+    if (selectedPost) return; // Đã có selectedPost thì không xử lý nữa
 
-    const postId = Number(postIdFromUrl);
-    const foundPost = posts.find((p) => p.id === postId);
-    if (foundPost) {
-      setSelectedPost(foundPost);
-    } else {
-      setSelectedPost({ id: postId });
+    const postIdFromUrl = searchParams.get("postId");
+    const repostIdFromUrl = searchParams.get("repostId");
+
+    // Xử lý postId
+    if (postIdFromUrl) {
+      const postId = Number(postIdFromUrl);
+      const foundPost = posts.find((p) => p.id === postId);
+      if (foundPost) {
+        setSelectedPost(foundPost);
+      } else {
+        setSelectedPost({ id: postId });
+      }
+      return;
+    }
+
+    // Xử lý repostId
+    if (repostIdFromUrl) {
+      const repostId = Number(repostIdFromUrl);
+      const foundRepost = reposts?.find((r) => r.repostId === repostId);
+      if (foundRepost) {
+        setSelectedPost(foundRepost);
+      } else {
+        // Nếu không tìm thấy, set với repostId để PostDetailModal có thể xử lý
+        setSelectedPost({ repostId: repostId });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, selectedPost, posts]);
+  }, [searchParams, selectedPost, posts, reposts]);
 
   const handleClosePostModal = () => {
     const postId = selectedPost?.id;
@@ -277,6 +295,11 @@ export default function Profile() {
 
     if (searchParams.get("postId")) {
       searchParams.delete("postId");
+      setSearchParams(searchParams, { replace: true });
+    }
+
+    if (searchParams.get("repostId")) {
+      searchParams.delete("repostId");
       setSearchParams(searchParams, { replace: true });
     }
 
