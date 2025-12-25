@@ -57,7 +57,7 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
 
   return (
     <div
-      className={`flex items-center justify-center bg-white relative w-full rounded-lg overflow-hidden ${className}`}
+      className={`flex items-center justify-center bg-white relative w-full h-full max-w-full max-h-full rounded-lg overflow-hidden ${className}`}
     >
       {/* Loading indicator */}
       {!isVideo && !loadedImages[currentMediaIndex] && (
@@ -77,7 +77,7 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
               key={currentMediaIndex} // Force remount để reset video state
               src={currentMedia.mediaUrl}
               controls
-              className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
+              className="max-w-full max-h-full w-full h-full object-contain rounded-lg"
               preload="metadata"
               onError={(e) => {
                 e.target.src = "/videos/placeholder.mp4";
@@ -87,7 +87,7 @@ const PostMediaViewer = ({ media, content, className = "" }) => {
             <img
               src={currentMedia.mediaUrl}
               alt={content}
-              className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg"
+              className="max-w-full max-h-full w-full h-full object-contain rounded-lg"
               loading="eager"
               onError={(e) => {
                 e.target.src = "/images/placeholder.png";

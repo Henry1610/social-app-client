@@ -94,6 +94,7 @@ const PostDetailModal = ({
   const displayUser = selectedPostFull?.user; // User của post gốc
   const repostedByUser = isRepost && repostData?.repost?.user ? repostData.repost.user : null; // User của người repost
   const displayCreatedAt = isRepost && repostData?.repost?.createdAt ? repostData.repost.createdAt : selectedPostFull?.createdAt;
+  const displayRepostContent = isRepost && repostData?.repost?.content ? repostData.repost.content : null; // Content của repost
   
   // Đảm bảo có dữ liệu trước khi render
   const isLoading = isRepost ? loadingRepost : loadingPost;
@@ -519,10 +520,11 @@ const PostDetailModal = ({
             </div>
           </div>
           {/* Media Viewer */}
-          <div className="flex-1 min-h-0 overflow-hidden flex items-center mx-2">
+          <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center mx-2 py-2">
             <PostMediaViewer
               media={selectedPostFull.media}
               content={selectedPostFull.content}
+              className="w-full h-full max-w-full max-h-full"
             />
           </div>
         </div>
@@ -534,7 +536,7 @@ const PostDetailModal = ({
               <PostHeader
                 user={displayUser}
                 createdAt={displayCreatedAt}
-                content={selectedPostFull.content}
+                content={isRepost && displayRepostContent ? displayRepostContent : selectedPostFull.content}
                 isRepost={isRepost}
                 repostedBy={repostedByUser}
                 onNavigate={navigate}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useGetRepliesByCommentQuery, useReplyCommentMutation } from "../api/commentApi";
 import { useGetReactionsQuery, useGetMyReactionQuery, useCreateOrUpdateReactionMutation, useGetReactionStatsQuery } from "../../reaction/api/reactionApi";
 import { formatTimeAgo } from "../../../utils/formatTimeAgo";
@@ -133,6 +134,7 @@ const CommentItem = ({
       await refetchReplies();
     } catch (error) {
       console.error("Error replying:", error);
+      toast.error(error?.data?.message || "Phản hồi thất bại");
       setIsReplying(false);
     }
   };
