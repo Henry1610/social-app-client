@@ -12,18 +12,10 @@ const PostGridItem = ({ post, onClick }) => {
 
   return (
     <div
-      className={`relative group cursor-pointer aspect-square overflow-hidden bg-gray-100 ${
-        isRepost ? 'border-2 border-blue-400' : ''
+      className={`relative group cursor-pointer aspect-square overflow-hidden bg-gray-100 
       }`}
       onClick={onClick}
-    >
-      {isRepost && (
-        <div className="absolute top-2 right-2 z-10 bg-blue-500 text-white px-2 py-1 rounded-full flex items-center gap-1 text-xs font-semibold">
-          <Repeat2 size={12} />
-          <span>Đã đăng lại</span>
-        </div>
-      )}
-      
+    > 
       {previewImage ? (
         <img
           src={previewImage}
@@ -49,7 +41,10 @@ const PostGridItem = ({ post, onClick }) => {
             <MessageCircle size={20} />
             <span className="text-sm">{commentCount}</span>
           </div>
-          <div className="flex items-center gap-1">
+          {
+            !isRepost && (
+              <>
+<div className="flex items-center gap-1">
             <Repeat2 size={20} />
             <span className="text-sm">{repostsCount}</span>
           </div>
@@ -57,6 +52,9 @@ const PostGridItem = ({ post, onClick }) => {
             <Bookmark size={20} fill="currentColor" />
             <span className="text-sm">{savesCount}</span>
           </div>
+              </>
+            )
+          }
         </div>
       </div>
     </div>

@@ -25,3 +25,6 @@ export { default as SearchSkeleton } from './SearchSkeleton';
 // Modal Skeleton
 export { default as ModalSkeleton } from './ModalSkeleton';
 
+// Feed Skeleton
+export { default as FeedSkeleton } from './FeedSkeleton';
+

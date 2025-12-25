@@ -427,7 +427,7 @@ function Post({
 
 
   return (
-    <article ref={postViewRef} className="border-b border-gray-200 w-full max-w-[600px] mx-auto px-2 md:px-0">
+    <article ref={postViewRef} className="border-b border-gray-200 w-full max-w-[480px] mx-auto px-2 md:px-0">
       {/* Post Header */}
       <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex-1 min-w-0">

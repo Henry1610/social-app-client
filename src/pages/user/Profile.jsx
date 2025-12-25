@@ -35,7 +35,6 @@ import FollowButton from "../../components/common/FollowButton";
 import ModalUserItem from "../../features/profile/components/ModalUserItem";
 import { ProfileSkeleton } from "../../components/common/skeletons";
 import PostGridItem from "../../features/post/components/PostGridItem";
-import Post from "../../features/post/components/Post";
 import PostDetailModal from "../../features/post/components/PostDetailModal";
 import Footer from "../../components/layouts/Footer";
 import { ModalSkeleton } from "../../components/common/skeletons";
@@ -556,52 +555,24 @@ export default function Profile() {
               {activeTab === "reposts" && (
                 <>
                   {loadingReposts ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">
-                        Đang tải bài viết đã đăng lại...
-                      </p>
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-1">
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="aspect-square bg-gray-200 animate-pulse"
+                        />
+                      ))}
                     </div>
                   ) : reposts.length > 0 ? (
-                    <div className="space-y-6 animate-fadeIn mb-16">
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-1 animate-fadeIn">
                       {reposts.map((post) => (
-                        <Post
+                        <PostGridItem
                           key={`repost-${post.id}-${post.repostCreatedAt}`}
-                          id={post.id}
-                          user={{
-                            username: post.user?.username || "unknown",
-                            fullName: post.user?.fullName || "",
-                            avatar:
-                              post.user?.avatarUrl ||
-                              "/images/avatar-IG-mac-dinh-1.jpg",
-                            verified: false,
-                          }}
-                          media={
-                            post.media?.map((m) => ({
-                              mediaUrl: m.mediaUrl,
-                              type: m.mediaType?.toLowerCase() || "image",
-                            })) || []
-                          }
-                          content={post.content || ""}
-                          createdAt={post.repostCreatedAt || post.createdAt}
-                          likes={post.repostReactionCount || 0}
-                          commentsCount={post.repostCommentCount || 0}
-                          isLiked={post.isLiked ?? false}
-                          isReposted={post.isReposted ?? false}
-                          isSaved={post.isSaved ?? false}
-                          isRepost={true}
-                          repostId={post.repostId || null}
-                          repostedBy={post.repostedBy || null}
-                          repostContent={post.repostContent || null}
-                          originalPost={{
-                            likes: post.originalReactionCount ?? 0,
-                            commentsCount: post.originalCommentCount ?? 0,
-                            repostsCount: post.originalRepostsCount ?? 0,
-                            savesCount: post.originalSavesCount ?? 0,
-                            isLiked: post.originalIsLiked ?? false,
-                            isSaved: post.originalIsSaved ?? false,
-                            isReposted: post.originalIsReposted ?? false,
-                            createdAt: post.originalCreatedAt ?? null,
-                            isDeleted: post.isOriginalPostDeleted ?? false,
+                          post={post}
+                          onClick={() => {
+                            setSelectedPost(post);
+                            setShowSettingsMenu(false);
+                            setShowPrivacySettings(false);
                           }}
                         />
                       ))}
@@ -657,7 +628,7 @@ export default function Profile() {
             {/* Modal for Post */}
             {selectedPost && (
               <PostDetailModal
-                postId={selectedPost.id}
+                postId={selectedPost.isRepost ? undefined : selectedPost.id}
                 repostId={selectedPost.repostId}
                 onClose={handleClosePostModal}
                 showSettingsMenu={showSettingsMenu}

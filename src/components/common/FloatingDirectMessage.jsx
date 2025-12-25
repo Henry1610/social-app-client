@@ -18,6 +18,8 @@ import EmptyMessagesState from "../../features/chat/components/EmptyMessagesStat
 import ChatProfileCard from "../../features/chat/components/ChatProfileCard";
 import ConversationAvatars from "./ConversationAvatars";
 import PinnedMessagesBar from "../../features/chat/components/PinnedMessagesBar";
+import socketService from "../../services/socket";
+import { isUserActuallyOnline } from "../../utils/userStatusUtils";
 
 const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConversation }) => {
   const location = useLocation();
@@ -40,6 +42,9 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
   
   const currentUser = useSelector(selectCurrentUser);
   const { data: conversationsData, isLoading } = useGetConversationsQuery();
+  
+  // State cho online users
+  const [onlineUsers, setOnlineUsers] = useState({});
   
   // Sử dụng useChatLogic khi có conversation được chọn
   const chatLogic = useChatLogic({ 
@@ -67,82 +72,144 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
       setLocalOpen(false);
     }
   }, [location.pathname]);
+
+  // ===== SOCKET EVENT HANDLERS FOR ONLINE STATUS =====
+  useEffect(() => {
+    const handleUserStatus = (data) => {
+      const isOnline = isUserActuallyOnline(data);
+      
+      setOnlineUsers(prev => ({
+        ...prev,
+        [data.userId]: isOnline
+      }));
+    };
+
+    socketService.on('chat:user_status', handleUserStatus);
+    return () => socketService.off('chat:user_status', handleUserStatus);
+  }, []);
+
+  // ===== INITIALIZE ONLINE USERS =====
+  useEffect(() => {
+    if (conversationsData?.data?.conversations) {
+      const initialOnlineUsers = {};
+      conversationsData.data.conversations.forEach(conv => {
+        conv.members?.forEach(member => {
+          if (member.user.id !== currentUser?.id) {
+            initialOnlineUsers[member.user.id] = isUserActuallyOnline(member.user);
+          }
+        });
+      });
+      setOnlineUsers(initialOnlineUsers);
+    }
+  }, [conversationsData?.data?.conversations, currentUser?.id]);
+
+  // ===== PERIODIC ONLINE STATUS UPDATE =====
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (conversationsData?.data?.conversations) {
+        setOnlineUsers(prev => {
+          const updated = { ...prev };
+          conversationsData.data.conversations.forEach(conv => {
+            conv.members?.forEach(member => {
+              if (member.user.id !== currentUser?.id) {
+                updated[member.user.id] = isUserActuallyOnline(member.user);
+              }
+            });
+          });
+          return updated;
+        });
+      }
+    }, 60000); // Update mỗi phút
+
+    return () => clearInterval(interval);
+  }, [conversationsData?.data?.conversations, currentUser?.id]);
   
   const conversations = useMemo(() => {
     if (!conversationsData?.data?.conversations) return [];
     
-    return conversationsData.data.conversations.map(conv => {
-      // Lấy thông tin người chat (không phải user hiện tại)
-      const otherMember = conv.members?.find(member => 
-        member.user.id !== currentUser?.id
-      );
-      const lastMessage = conv.messages?.[0];
-      
-      const getConversationName = () => {
-        if (conv.type === 'GROUP') {
-          return conv.name || '';
-        } else {
-          return otherMember?.user?.fullName || otherMember?.user?.username || 'Người dùng';
-        }
-      };
-      
-      // Xử lý avatar
-      const getAvatar = () => {
-        if (conv.type === 'GROUP') {
-          const firstOtherMember = conv.members?.find(member => member.user.id !== currentUser?.id);
-          return firstOtherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg";
-        } else {
-          return otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg";
-        }
-      };
-      
-      // Xử lý preview message
-      const getMessagePreview = () => {
-        if (!lastMessage) return 'Bắt đầu cuộc trò chuyện';
+    return conversationsData.data.conversations
+      .map(conv => {
+        // Lấy thông tin người chat (không phải user hiện tại)
+        const otherMember = conv.members?.find(member => 
+          member.user.id !== currentUser?.id
+        );
+        const lastMessage = conv.messages?.[0];
         
-        const isOwn = lastMessage.senderId === currentUser?.id;
-        const isGroup = conv.type === 'GROUP';
+        const getConversationName = () => {
+          if (conv.type === 'GROUP') {
+            return conv.name || '';
+          } else {
+            return otherMember?.user?.fullName || otherMember?.user?.username || 'Người dùng';
+          }
+        };
         
-        // Prefix cho message
-        const prefix = lastMessage.isSystem
-          ? ''
-          : isOwn
-            ? 'Bạn: '
-            : isGroup
-              ? `${lastMessage.sender?.fullName || lastMessage.sender?.username || 'Hệ thống'}: `
-              : '';
+        // Xử lý avatar
+        const getAvatar = () => {
+          if (conv.type === 'GROUP') {
+            const firstOtherMember = conv.members?.find(member => member.user.id !== currentUser?.id);
+            return firstOtherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg";
+          } else {
+            return otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg";
+          }
+        };
         
-        // Body của message
-        let body = '';
-        if (lastMessage.isRecalled) {
-          body = 'Tin nhắn đã thu hồi';
-        } else if (lastMessage.type === 'IMAGE') {
-          body = 'đã gửi một ảnh';
-        } else if (lastMessage.type === 'VIDEO') {
-          body = 'đã gửi một video';
-        } else {
-          body = lastMessage.content || '';
-        }
+        // Xử lý preview message
+        const getMessagePreview = () => {
+          if (!lastMessage) return 'Bắt đầu cuộc trò chuyện';
+          
+          const isOwn = lastMessage.senderId === currentUser?.id;
+          const isGroup = conv.type === 'GROUP';
+          
+          // Prefix cho message
+          const prefix = lastMessage.isSystem
+            ? ''
+            : isOwn
+              ? 'Bạn: '
+              : isGroup
+                ? `${lastMessage.sender?.fullName || lastMessage.sender?.username || 'Hệ thống'}: `
+                : '';
+          
+          // Body của message
+          let body = '';
+          if (lastMessage.isRecalled) {
+            body = 'Tin nhắn đã thu hồi';
+          } else if (lastMessage.type === 'IMAGE') {
+            body = 'đã gửi một ảnh';
+          } else if (lastMessage.type === 'VIDEO') {
+            body = 'đã gửi một video';
+          } else {
+            body = lastMessage.content || '';
+          }
+          
+          return prefix + body;
+        };
         
-        return prefix + body;
-      };
-      
-      // Format thời gian
-      const getTime = () => {
-        if (!lastMessage?.createdAt) return '';
-        return formatTimeAgo(lastMessage.createdAt);
-      };
-      
-      return {
-        id: conv.id,
-        name: getConversationName(),
-        message: getMessagePreview(),
-        time: getTime(),
-        avatar: getAvatar(),
-        conversation: conv
-      };
-    });
-  }, [conversationsData?.data?.conversations, currentUser?.id]);
+        // Format thời gian
+        const getTime = () => {
+          if (!lastMessage?.createdAt) return '';
+          return formatTimeAgo(lastMessage.createdAt);
+        };
+        
+        // Kiểm tra online status
+        const isDirectChat = conv.type === 'DIRECT';
+        const showOnlineStatus = isDirectChat && otherMember?.user?.privacySettings?.showOnlineStatus !== false;
+        // Ưu tiên dùng onlineUsers state (từ socket), nếu không có thì dùng dữ liệu từ API
+        const isUserOnline = onlineUsers[otherMember?.user?.id] ?? (otherMember?.user ? isUserActuallyOnline(otherMember.user) : false);
+        
+        return {
+          id: conv.id,
+          name: getConversationName(),
+          message: getMessagePreview(),
+          time: getTime(),
+          avatar: getAvatar(),
+          conversation: conv,
+          otherMember,
+          isDirectChat,
+          showOnlineStatus,
+          isUserOnline
+        };
+      });
+  }, [conversationsData?.data?.conversations, currentUser?.id, onlineUsers]);
 
   // Get conversation name for selected conversation
   const getSelectedConvName = () => {
@@ -237,12 +304,21 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
                       const otherMember = selectedConv.members?.find(member => 
                         member.user.id !== currentUser?.id
                       );
+                      const isDirectChat = selectedConv.type === 'DIRECT';
+                      const showOnlineStatus = isDirectChat && otherMember?.user?.privacySettings?.showOnlineStatus !== false;
+                      const isUserOnline = onlineUsers[otherMember?.user?.id] ?? (otherMember?.user ? isUserActuallyOnline(otherMember.user) : false);
                       return (
-                        <img
-                          src={otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
-                          alt={otherMember?.user?.username}
-                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                        />
+                        <div className="relative">
+                          <img
+                            src={otherMember?.user?.avatarUrl || "/images/avatar-IG-mac-dinh-1.jpg"}
+                            alt={otherMember?.user?.username}
+                            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                          />
+                          {/* Online status indicator */}
+                          {isDirectChat && isUserOnline && showOnlineStatus && (
+                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                          )}
+                        </div>
                       );
                     })()
                   )}
@@ -464,11 +540,17 @@ const FloatingDirectMessage = ({ avatarUrl, label = "Tin nhắn", onSelectConver
                   {msg.conversation?.type === 'GROUP' ? (
                     <ConversationAvatars members={msg.conversation.members} size={40} borderWidth={1} />
                   ) : (
-                    <img
-                      src={msg.avatar}
-                      alt={msg.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
+                    <div className="relative">
+                      <img
+                        src={msg.avatar}
+                        alt={msg.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      {/* Online status indicator */}
+                      {msg.isDirectChat && msg.isUserOnline && msg.showOnlineStatus && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                      )}
+                    </div>
                   )}
                   <div>
                     <p className="font-medium text-sm">{msg.name}</p>

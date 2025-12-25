@@ -10,6 +10,7 @@ import socketService from "../../services/socket";
 import { formatOfflineTime } from "../../utils/formatTimeAgo";
 import ConversationAvatars from "../../components/common/ConversationAvatars";
 import CreateGroupModal from "./components/CreateGroupModal";
+import { isUserActuallyOnline } from "../../utils/userStatusUtils";
 
 const ChatSidebar = ({
   selectedConversation,
@@ -56,15 +57,7 @@ const ChatSidebar = ({
   }, [allConversations, searchQuery, currentUser?.id]);
 
   // ===== HELPER FUNCTIONS =====
-  const isUserActuallyOnline = useCallback((user) => {
-    if (!user?.isOnline || !user?.lastSeen) return false;
-    
-    const lastSeenDate = new Date(user.lastSeen);
-    const now = new Date();
-    const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
-    
-    return diffMinutes <= 5;
-  }, []);
+  // isUserActuallyOnline is imported from utils/userStatusUtils
 
   const getConversationName = useCallback((conv, otherMember) => {
     if (conv.type === 'GROUP') {
@@ -137,12 +130,7 @@ const ChatSidebar = ({
 
   useEffect(() => {
     const handleUserStatus = (data) => {
-      const isOnline = data.isOnline && data.lastSeen ? (() => {
-        const lastSeenDate = new Date(data.lastSeen);
-        const now = new Date();
-        const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
-        return diffMinutes <= 5;
-      })() : data.isOnline;
+      const isOnline = isUserActuallyOnline(data);
       
       setOnlineUsers(prev => ({
         ...prev,
@@ -167,7 +155,7 @@ const ChatSidebar = ({
       });
       setOnlineUsers(initialOnlineUsers);
     }
-  }, [conversations, currentUser?.id, isUserActuallyOnline]);
+  }, [conversations, currentUser?.id]);
 
   // ===== PERIODIC ONLINE STATUS UPDATE =====
   useEffect(() => {
@@ -186,7 +174,7 @@ const ChatSidebar = ({
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [conversations, currentUser?.id, isUserActuallyOnline]);
+  }, [conversations, currentUser?.id]);
 
   // ===== HANDLERS =====
   const handleConversationClick = (conv) => {
@@ -347,7 +335,7 @@ const ChatSidebar = ({
                     {showOnlineStatus && (
                       <p className="text-xs text-gray-400 truncate">
                         {isUserOnline ? (
-                          <span className="text-green-500">Đang hoạt động</span>
+                          <></>
                         ) : (
                           <span>{formatOfflineTime(otherMember?.user?.lastSeen)}</span>
                         )}

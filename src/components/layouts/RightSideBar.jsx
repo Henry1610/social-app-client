@@ -46,7 +46,7 @@ function RightSidebar() {
   };
 
   return (
-    <aside className="w-80 pl-10 py-10 hidden lg:block">
+    <aside className="w-80 pl-10 py-8 hidden lg:block">
       {/* User Profile */}
       {currentUser && (
         <div className="flex items-center justify-between mb-4">

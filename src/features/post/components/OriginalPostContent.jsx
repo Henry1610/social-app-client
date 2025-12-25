@@ -72,22 +72,12 @@ function OriginalPostContent({
 
       {/* Media */}
       {media.length > 0 && (
-        <div className="mt-2">
-          {media[0].type === 'video' ? (
-            <video
-              src={media[0].mediaUrl}
-              className="w-full aspect-square object-cover rounded-md"
-              controls
-            />
-          ) : (
-            <div className="w-full aspect-square rounded-md overflow-hidden relative">
-              <PostMediaViewer
-                media={media}
-                content={content}
-                className="!flex-none w-full h-full rounded-md"
-              />
-            </div>
-          )}
+        <div className="mt-2 mb-3 mx-auto w-full rounded-md overflow-hidden relative">
+          <PostMediaViewer
+            media={media}
+            content={content}
+            className="!flex-none w-full rounded-md"
+          />
         </div>
       )}
 

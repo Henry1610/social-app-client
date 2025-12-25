@@ -12,9 +12,9 @@ export function formatTimeAgo(dateString) {
     const diffYear = Math.floor(diffDay / 365);
   
     if (diffMin < 1) return "Vừa xong";
-    if (diffMin < 60) return `${diffMin} phút trước`;
-    if (diffHour < 24) return `${diffHour} giờ trước`;
-    if (diffDay < 7) return `${diffDay} ngày trước`;
+    if (diffMin < 60) return `${diffMin} phút `;
+    if (diffHour < 24) return `${diffHour} giờ `;
+    if (diffDay < 7) return `${diffDay} ngày `;
     if (diffWeek < 4) return `${diffWeek} tuần`;
     if (diffMonth < 12) return `${diffMonth} tháng`;
     if (diffYear >= 1) return `${diffYear} năm`;
@@ -40,9 +40,9 @@ export function formatOfflineTime(lastSeen) {
     const diffDay = Math.floor(diffHour / 24);
   
     if (diffMin < 1) return "Vừa online";
-    if (diffMin < 60) return `Offline ${diffMin} phút trước`;
-    if (diffHour < 24) return `Offline ${diffHour} giờ trước`;
-    if (diffDay < 7) return `Offline ${diffDay} ngày trước`;
+    if (diffMin < 60) return `Offline ${diffMin} phút `;
+    if (diffHour < 24) return `Offline ${diffHour} giờ `;
+    if (diffDay < 7) return `Offline ${diffDay} ngày `;
   
     // Nếu quá 7 ngày thì hiển thị ngày/tháng/năm cụ thể
     return `Offline ${date.toLocaleDateString("vi-VN", {

@@ -4,7 +4,7 @@ import BottomNavigationBar from "./BottomNavigationBar";
 
 const Layout = () => {
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen">
       <Sidebar />
       <Outlet/>
       <BottomNavigationBar />
