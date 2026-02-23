@@ -1,4 +1,4 @@
-// Hàm định dạng thời gian giống Instagram
+// Hàm định dạng thời gian
 export function formatTimeAgo(dateString) {
     const date = new Date(dateString);
     const now = new Date();

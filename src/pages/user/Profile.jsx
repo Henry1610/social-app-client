@@ -262,12 +262,12 @@ export default function Profile() {
 
     // Xử lý postId
     if (postIdFromUrl) {
-      const postId = Number(postIdFromUrl);
-      const foundPost = posts.find((p) => p.id === postId);
-      if (foundPost) {
-        setSelectedPost(foundPost);
-      } else {
-        setSelectedPost({ id: postId });
+    const postId = Number(postIdFromUrl);
+    const foundPost = posts.find((p) => p.id === postId);
+    if (foundPost) {
+      setSelectedPost(foundPost);
+    } else {
+      setSelectedPost({ id: postId });
       }
       return;
     }

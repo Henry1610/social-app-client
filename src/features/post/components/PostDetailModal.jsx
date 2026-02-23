@@ -508,12 +508,12 @@ const PostDetailModal = ({
                   </>
                 ) : (
                   <>
-                    <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-900">
                       {displayUser?.username}
-                    </p>
-                    <p className="text-xs text-gray-500">
+                </p>
+                <p className="text-xs text-gray-500">
                       {formatTimeAgo(displayCreatedAt)}
-                    </p>
+                </p>
                   </>
                 )}
               </div>
