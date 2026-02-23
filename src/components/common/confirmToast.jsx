@@ -1,4 +1,4 @@
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { Info } from "lucide-react";
 const confirmToast = (message) => {
     return new Promise((resolve) => {
